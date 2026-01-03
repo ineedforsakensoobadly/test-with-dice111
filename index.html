@@ -811,6 +811,7 @@
             // Listen for account changes
             accountsRef.on('value', (snapshot) => {
                 const sharedAccounts = snapshot.val() || {};
+                // Merge shared accounts with local accounts
                 accounts = { ...accounts, ...sharedAccounts };
                 localStorage.setItem('diceChatAccounts', JSON.stringify(accounts));
                 refreshUserList();
@@ -818,7 +819,7 @@
             
             // Listen for message changes
             messagesRef.on('value', (snapshot) => {
-                const sharedMessages = snapshot.val() || [];
+                const sharedMessagesData = snapshot.val();
                 const messageMap = new Map();
                 
                 // Add local messages
@@ -826,10 +827,20 @@
                     messageMap.set(`${msg.username}-${msg.timestamp}`, msg);
                 });
                 
-                // Add shared messages
-                if (Array.isArray(sharedMessages)) {
+                // Add shared messages - Firebase returns objects, convert to array
+                if (sharedMessagesData) {
+                    let sharedMessages = [];
+                    if (Array.isArray(sharedMessagesData)) {
+                        sharedMessages = sharedMessagesData;
+                    } else if (typeof sharedMessagesData === 'object') {
+                        // Convert object to array
+                        sharedMessages = Object.values(sharedMessagesData);
+                    }
+                    
                     sharedMessages.forEach(msg => {
-                        messageMap.set(`${msg.username}-${msg.timestamp}`, msg);
+                        if (msg && msg.username && msg.timestamp) {
+                            messageMap.set(`${msg.username}-${msg.timestamp}`, msg);
+                        }
                     });
                 }
                 
@@ -857,20 +868,32 @@
                 
                 // Load messages
                 const messagesSnapshot = await database.ref('messages').once('value');
-                const sharedMessages = messagesSnapshot.val() || [];
+                const sharedMessagesData = messagesSnapshot.val();
                 
-                if (Array.isArray(sharedMessages) && sharedMessages.length > 0) {
-                    const messageMap = new Map();
-                    messages.forEach(msg => {
-                        messageMap.set(`${msg.username}-${msg.timestamp}`, msg);
-                    });
-                    sharedMessages.forEach(msg => {
-                        messageMap.set(`${msg.username}-${msg.timestamp}`, msg);
-                    });
-                    messages = Array.from(messageMap.values()).sort((a, b) => a.timestamp - b.timestamp);
-                    localStorage.setItem('diceChatMessages', JSON.stringify(messages));
-                    if (username) {
-                        loadMessages();
+                if (sharedMessagesData) {
+                    let sharedMessages = [];
+                    if (Array.isArray(sharedMessagesData)) {
+                        sharedMessages = sharedMessagesData;
+                    } else if (typeof sharedMessagesData === 'object') {
+                        // Convert object to array
+                        sharedMessages = Object.values(sharedMessagesData);
+                    }
+                    
+                    if (sharedMessages.length > 0) {
+                        const messageMap = new Map();
+                        messages.forEach(msg => {
+                            messageMap.set(`${msg.username}-${msg.timestamp}`, msg);
+                        });
+                        sharedMessages.forEach(msg => {
+                            if (msg && msg.username && msg.timestamp) {
+                                messageMap.set(`${msg.username}-${msg.timestamp}`, msg);
+                            }
+                        });
+                        messages = Array.from(messageMap.values()).sort((a, b) => a.timestamp - b.timestamp);
+                        localStorage.setItem('diceChatMessages', JSON.stringify(messages));
+                        if (username) {
+                            loadMessages();
+                        }
                     }
                 }
                 
@@ -884,13 +907,15 @@
             if (!firebaseInitialized) return;
             
             try {
-                // Save accounts
+                // Save accounts to Firebase
                 await database.ref('accounts').set(accounts);
                 
-                // Save messages (last 100)
-                await database.ref('messages').set(messages.slice(-100));
+                // Save messages to Firebase (last 100)
+                // Store as array to maintain order
+                const messagesToSave = messages.slice(-100);
+                await database.ref('messages').set(messagesToSave);
             } catch (error) {
-                console.log('Could not save to shared storage:', error);
+                console.error('Could not save to shared storage:', error);
             }
         }
 
@@ -1048,7 +1073,7 @@
             
             localStorage.setItem('diceChatAccounts', JSON.stringify(accounts));
             
-            // Save to shared storage
+            // Save to shared storage (Firebase)
             saveSharedData();
             
             successDiv.textContent = 'Account created! Please log in.';
