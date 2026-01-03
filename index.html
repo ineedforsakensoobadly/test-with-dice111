@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dice Roller</title>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
     <style>
         * {
             margin: 0;
@@ -749,6 +752,31 @@
         let currentUser = null;
         let messages = JSON.parse(localStorage.getItem('diceChatMessages')) || [];
         let accounts = JSON.parse(localStorage.getItem('diceChatAccounts')) || {};
+        
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBoGVgsrLMp6K1URAQHXi5vX_AGpt1gGk4",
+            authDomain: "dice-roller-12c2c.firebaseapp.com",
+            databaseURL: "https://dice-roller-12c2c-default-rtdb.firebaseio.com/",
+            projectId: "dice-roller-12c2c",
+            storageBucket: "dice-roller-12c2c.firebasestorage.app",
+            messagingSenderId: "709276724324",
+            appId: "1:709276724324:web:0427178e64b1ccadd68371"
+        };
+        
+        // Initialize Firebase
+        let firebaseApp = null;
+        let database = null;
+        let firebaseInitialized = false;
+        
+        try {
+            firebaseApp = firebase.initializeApp(firebaseConfig);
+            database = firebase.database();
+            firebaseInitialized = true;
+        } catch (error) {
+            console.log('Firebase not configured, using local storage only');
+            firebaseInitialized = false;
+        }
 
         // Simple hash function for passwords (not cryptographically secure, but better than plain text)
         function hashPassword(password) {
@@ -763,9 +791,117 @@
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', () => {
+            initializeSharedStorage();
             refreshUserList(); // Always load user list
             checkAuth();
+            startSync();
         });
+
+        // Shared storage functions using Firebase Realtime Database
+        function initializeSharedStorage() {
+            if (!firebaseInitialized) {
+                console.log('Firebase not initialized, using local storage only');
+                return;
+            }
+            
+            // Listen for real-time updates
+            const accountsRef = database.ref('accounts');
+            const messagesRef = database.ref('messages');
+            
+            // Listen for account changes
+            accountsRef.on('value', (snapshot) => {
+                const sharedAccounts = snapshot.val() || {};
+                accounts = { ...accounts, ...sharedAccounts };
+                localStorage.setItem('diceChatAccounts', JSON.stringify(accounts));
+                refreshUserList();
+            });
+            
+            // Listen for message changes
+            messagesRef.on('value', (snapshot) => {
+                const sharedMessages = snapshot.val() || [];
+                const messageMap = new Map();
+                
+                // Add local messages
+                messages.forEach(msg => {
+                    messageMap.set(`${msg.username}-${msg.timestamp}`, msg);
+                });
+                
+                // Add shared messages
+                if (Array.isArray(sharedMessages)) {
+                    sharedMessages.forEach(msg => {
+                        messageMap.set(`${msg.username}-${msg.timestamp}`, msg);
+                    });
+                }
+                
+                messages = Array.from(messageMap.values()).sort((a, b) => a.timestamp - b.timestamp);
+                localStorage.setItem('diceChatMessages', JSON.stringify(messages));
+                
+                if (username) {
+                    loadMessages();
+                }
+            });
+            
+            // Load initial data
+            loadSharedData();
+        }
+
+        async function loadSharedData() {
+            if (!firebaseInitialized) return;
+            
+            try {
+                // Load accounts
+                const accountsSnapshot = await database.ref('accounts').once('value');
+                const sharedAccounts = accountsSnapshot.val() || {};
+                accounts = { ...accounts, ...sharedAccounts };
+                localStorage.setItem('diceChatAccounts', JSON.stringify(accounts));
+                
+                // Load messages
+                const messagesSnapshot = await database.ref('messages').once('value');
+                const sharedMessages = messagesSnapshot.val() || [];
+                
+                if (Array.isArray(sharedMessages) && sharedMessages.length > 0) {
+                    const messageMap = new Map();
+                    messages.forEach(msg => {
+                        messageMap.set(`${msg.username}-${msg.timestamp}`, msg);
+                    });
+                    sharedMessages.forEach(msg => {
+                        messageMap.set(`${msg.username}-${msg.timestamp}`, msg);
+                    });
+                    messages = Array.from(messageMap.values()).sort((a, b) => a.timestamp - b.timestamp);
+                    localStorage.setItem('diceChatMessages', JSON.stringify(messages));
+                    if (username) {
+                        loadMessages();
+                    }
+                }
+                
+                refreshUserList();
+            } catch (error) {
+                console.log('Could not load shared data:', error);
+            }
+        }
+
+        async function saveSharedData() {
+            if (!firebaseInitialized) return;
+            
+            try {
+                // Save accounts
+                await database.ref('accounts').set(accounts);
+                
+                // Save messages (last 100)
+                await database.ref('messages').set(messages.slice(-100));
+            } catch (error) {
+                console.log('Could not save to shared storage:', error);
+            }
+        }
+
+        function startSync() {
+            // Firebase handles real-time updates automatically
+            // No need for polling interval
+        }
+
+        function stopSync() {
+            // Firebase cleanup is handled automatically
+        }
 
         function checkAuth() {
             const savedUser = localStorage.getItem('diceChatCurrentUser');
@@ -911,6 +1047,9 @@
             };
             
             localStorage.setItem('diceChatAccounts', JSON.stringify(accounts));
+            
+            // Save to shared storage
+            saveSharedData();
             
             successDiv.textContent = 'Account created! Please log in.';
             
@@ -1087,6 +1226,9 @@
             }
             
             localStorage.setItem('diceChatMessages', JSON.stringify(messages));
+            
+            // Save to shared storage
+            saveSharedData();
             
             displayMessage(message, true);
             chatInput.value = '';
