@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -808,11 +808,18 @@
             const accountsRef = database.ref('accounts');
             const messagesRef = database.ref('messages');
             
-            // Listen for account changes
+            // Listen for account changes - Firebase is the source of truth
             accountsRef.on('value', (snapshot) => {
                 const sharedAccounts = snapshot.val() || {};
-                // Merge shared accounts with local accounts
-                accounts = { ...accounts, ...sharedAccounts };
+                // Use Firebase data as primary source
+                accounts = sharedAccounts;
+                // Only add local accounts that aren't in Firebase (for offline support)
+                const localAccounts = JSON.parse(localStorage.getItem('diceChatAccounts')) || {};
+                Object.keys(localAccounts).forEach(key => {
+                    if (!accounts[key]) {
+                        accounts[key] = localAccounts[key];
+                    }
+                });
                 localStorage.setItem('diceChatAccounts', JSON.stringify(accounts));
                 refreshUserList();
             });
@@ -832,16 +839,18 @@
                     let sharedMessages = [];
                     if (Array.isArray(sharedMessagesData)) {
                         sharedMessages = sharedMessagesData;
-                    } else if (typeof sharedMessagesData === 'object') {
+                    } else if (typeof sharedMessagesData === 'object' && sharedMessagesData !== null) {
                         // Convert object to array
                         sharedMessages = Object.values(sharedMessagesData);
                     }
                     
-                    sharedMessages.forEach(msg => {
-                        if (msg && msg.username && msg.timestamp) {
-                            messageMap.set(`${msg.username}-${msg.timestamp}`, msg);
-                        }
-                    });
+                    if (sharedMessages && sharedMessages.length > 0) {
+                        sharedMessages.forEach(msg => {
+                            if (msg && msg.username && msg.timestamp) {
+                                messageMap.set(`${msg.username}-${msg.timestamp}`, msg);
+                            }
+                        });
+                    }
                 }
                 
                 messages = Array.from(messageMap.values()).sort((a, b) => a.timestamp - b.timestamp);
@@ -860,10 +869,18 @@
             if (!firebaseInitialized) return;
             
             try {
-                // Load accounts
+                // Load accounts - Firebase is source of truth
                 const accountsSnapshot = await database.ref('accounts').once('value');
                 const sharedAccounts = accountsSnapshot.val() || {};
-                accounts = { ...accounts, ...sharedAccounts };
+                // Prioritize Firebase accounts, merge local only if not in Firebase
+                accounts = { ...sharedAccounts };
+                // Add any local accounts that aren't in Firebase (for offline support)
+                const localAccounts = JSON.parse(localStorage.getItem('diceChatAccounts')) || {};
+                Object.keys(localAccounts).forEach(key => {
+                    if (!accounts[key]) {
+                        accounts[key] = localAccounts[key];
+                    }
+                });
                 localStorage.setItem('diceChatAccounts', JSON.stringify(accounts));
                 
                 // Load messages
@@ -1017,7 +1034,7 @@
             }
         }
 
-        function signup() {
+        async function signup() {
             const usernameInput = document.getElementById('signup-username');
             const passwordInput = document.getElementById('signup-password');
             const confirmInput = document.getElementById('signup-confirm');
@@ -1058,22 +1075,32 @@
                 return;
             }
             
-            // Check if username already exists
+            // Check if username already exists (check both local and Firebase)
             if (accounts[newUsername]) {
                 errorDiv.textContent = 'Username already exists';
                 return;
             }
             
             // Create account
-            accounts[newUsername] = {
+            const newAccount = {
                 username: newUsername,
                 passwordHash: hashPassword(password),
                 createdAt: Date.now()
             };
+            accounts[newUsername] = newAccount;
             
             localStorage.setItem('diceChatAccounts', JSON.stringify(accounts));
             
-            // Save to shared storage (Firebase)
+            // Save to Firebase immediately
+            if (firebaseInitialized) {
+                try {
+                    await database.ref('accounts').child(newUsername).set(newAccount);
+                } catch (error) {
+                    console.error('Error saving account to Firebase:', error);
+                }
+            }
+            
+            // Also save all accounts to ensure sync
             saveSharedData();
             
             successDiv.textContent = 'Account created! Please log in.';
@@ -1225,7 +1252,7 @@
             }
         }
 
-        function sendMessage() {
+        async function sendMessage() {
             if (!username) {
                 showAuthModal();
                 return;
@@ -1252,8 +1279,37 @@
             
             localStorage.setItem('diceChatMessages', JSON.stringify(messages));
             
-            // Save to shared storage
-            saveSharedData();
+            // Save to Firebase immediately
+            if (firebaseInitialized) {
+                try {
+                    // Get current messages from Firebase and add new one
+                    const messagesRef = database.ref('messages');
+                    const snapshot = await messagesRef.once('value');
+                    let currentMessages = snapshot.val() || [];
+                    
+                    // Convert to array if needed
+                    if (!Array.isArray(currentMessages) && typeof currentMessages === 'object') {
+                        currentMessages = Object.values(currentMessages);
+                    }
+                    
+                    // Add new message
+                    currentMessages.push(message);
+                    
+                    // Keep only last 100
+                    if (currentMessages.length > 100) {
+                        currentMessages = currentMessages.slice(-100);
+                    }
+                    
+                    // Save back to Firebase
+                    await messagesRef.set(currentMessages);
+                } catch (error) {
+                    console.error('Error saving message to Firebase:', error);
+                    // Fallback to saveSharedData
+                    saveSharedData();
+                }
+            } else {
+                saveSharedData();
+            }
             
             displayMessage(message, true);
             chatInput.value = '';
