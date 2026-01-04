@@ -42,6 +42,41 @@
       user-select: none;
     }
 
+    .auto-roll-toggle {
+      position: fixed;
+      top: 16px;
+      left: 180px;
+      z-index: 10;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.92);
+      color: var(--ink);
+      box-shadow: 0 10px 26px rgba(0, 0, 0, 0.22);
+      user-select: none;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .auto-roll-toggle.visible {
+      display: flex;
+    }
+
+    .auto-roll-toggle input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    }
+
+    .auto-roll-toggle label {
+      cursor: pointer;
+      margin: 0;
+      color: rgba(31, 36, 48, 0.85);
+      font-size: 12px;
+    }
+
     .coin-icon {
       width: 26px;
       height: 26px;
@@ -150,6 +185,93 @@
       gap: 10px;
     }
 
+    .shop-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+      border-bottom: 1px solid rgba(31, 36, 48, 0.1);
+    }
+
+    .shop-tab {
+      padding: 8px 16px;
+      border: none;
+      background: none;
+      color: rgba(31, 36, 48, 0.7);
+      font-weight: 600;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s ease;
+    }
+
+    .shop-tab:hover {
+      color: rgba(31, 36, 48, 0.9);
+    }
+
+    .shop-tab.active {
+      color: var(--bg1);
+      border-bottom-color: var(--bg1);
+    }
+
+    .shop-content {
+      display: none;
+    }
+
+    .shop-content.active {
+      display: block;
+    }
+
+    .achievements-list {
+      display: grid;
+      gap: 10px;
+      margin: 8px 0 14px;
+    }
+
+    .achievement {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      border-radius: 14px;
+      background: rgba(31, 36, 48, 0.05);
+      border: 1px solid rgba(31, 36, 48, 0.08);
+    }
+
+    .achievement.unlocked {
+      background: linear-gradient(135deg, rgba(34, 197, 94, 0.18), rgba(16, 185, 129, 0.18));
+      border: 1px solid rgba(34, 197, 94, 0.45);
+    }
+
+    .achievement-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      background: rgba(31, 36, 48, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+
+    .achievement.unlocked .achievement-icon {
+      background: linear-gradient(135deg, var(--bg1), var(--bg2));
+      color: white;
+    }
+
+    .achievement-info {
+      flex: 1;
+    }
+
+    .achievement-name {
+      font-weight: 700;
+      color: rgba(31, 36, 48, 0.9);
+      margin-bottom: 4px;
+    }
+
+    .achievement-desc {
+      font-size: 13px;
+      color: rgba(31, 36, 48, 0.7);
+    }
+
     .dev-access {
       display: flex;
       gap: 8px;
@@ -238,6 +360,26 @@
       place-items: center;
       padding: 22px;
       min-height: 320px;
+    }
+
+    .buff-icons {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 14px;
+      min-height: 26px;
+    }
+
+    .buff-icon {
+      width: 26px;
+      height: 26px;
+      display: none;
+      filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.25));
+    }
+
+    .buff-icon.visible {
+      display: block;
     }
 
     .die {
@@ -472,6 +614,11 @@
     <div class="coin-amount" id="coinAmount">0</div>
   </div>
 
+  <div class="auto-roll-toggle" id="autoRollToggle" aria-label="Auto roll toggle">
+    <input type="checkbox" id="autoRollCheckbox" />
+    <label for="autoRollCheckbox">Auto Roll</label>
+  </div>
+
   <div class="dev-panel" id="devPanel" aria-label="Dev panel">
     <div>DEV PANEL</div>
     <button class="dev-btn" id="devMaxCoins" type="button">Set coins to 99,999,999,999</button>
@@ -483,15 +630,27 @@
   <div class="modal" id="shopModal" aria-hidden="true">
     <div class="modal-card" role="dialog" aria-modal="true" aria-label="Shop">
       <button class="modal-close" id="shopClose" type="button" aria-label="Close">×</button>
-      <div class="modal-title">Music Shop</div>
-      <div class="shop-list" id="shopList"></div>
-      <div class="shop-actions">
-        <button class="btn" id="shopPlay" type="button">Play Selected</button>
-        <button class="btn secondary" id="shopStop" type="button">Stop</button>
+      <div class="modal-title">Shop</div>
+      
+      <div class="shop-tabs">
+        <button class="shop-tab active" id="shopTab" type="button">Shop</button>
+        <button class="shop-tab" id="achievementsTab" type="button">Achievements</button>
       </div>
-      <div class="dev-access">
-        <input type="password" id="devPassword" placeholder="Enter dev code..." maxlength="100" />
-        <button class="btn secondary" id="devUnlock" type="button">Unlock</button>
+      
+      <div class="shop-content active" id="shopContent">
+        <div class="shop-list" id="shopList"></div>
+        <div class="shop-actions">
+          <button class="btn" id="shopPlay" type="button">Play Selected</button>
+          <button class="btn secondary" id="shopStop" type="button">Stop</button>
+        </div>
+        <div class="dev-access">
+          <input type="password" id="devPassword" placeholder="Enter dev code..." maxlength="100" />
+          <button class="btn secondary" id="devUnlock" type="button">Unlock</button>
+        </div>
+      </div>
+      
+      <div class="shop-content" id="achievementsContent">
+        <div class="achievements-list" id="achievementsList"></div>
       </div>
     </div>
   </div>
@@ -526,6 +685,10 @@
       </section>
 
       <section class="panel stage" aria-label="Dice">
+        <div class="buff-icons" id="buffIcons" aria-label="Active buffs">
+          <img class="buff-icon" id="luckBuffIcon" alt="Luck buff" />
+          <img class="buff-icon" id="pointsBuffIcon" alt="Points buff" />
+        </div>
         <div class="die" id="die" role="button" tabindex="0" aria-label="Roll the die"></div>
       </section>
     </div>
@@ -537,6 +700,7 @@
       ownedTracks: 'ownedTracks',
       selectedTrack: 'selectedTrack',
       coinRemainder: 'coinRemainder',
+      achievements: 'achievements',
     };
 
     function readInt(key, fallback) {
@@ -559,6 +723,7 @@
       { id: 'lilgod', name: 'lil god', src: 'lil-god.mp3', cost: 676, playable: false, pet: true },
       { id: 'bronzeDice', name: 'Bronze Dice', src: '', cost: 150, playable: false, pet: false, multiplier: 1.5 },
       { id: 'silverDice', name: 'Silver Dice', src: '', cost: 300, playable: false, pet: false, multiplier: 2 },
+      { id: 'autoRoll', name: 'Auto Dice Roll', src: '', cost: 1000, playable: false, pet: false, autoRoll: true },
     ];
 
     let ownedTracks = (() => {
@@ -571,9 +736,25 @@
       }
     })();
 
+    let achievements = (() => {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEYS.achievements);
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    })();
+
+    const achievementDefs = [
+      { id: 'firstRoll', name: 'Where All Started..', desc: 'Roll the dice for the first time', icon: '🎲' },
+      { id: 'niceEarnings', name: 'Nice Earnings', desc: 'Get 1000 dices', icon: '🟩' },
+    ];
+
     let selectedTrack = localStorage.getItem(STORAGE_KEYS.selectedTrack) || '';
     let musicAudio = null;
     let petAudio = null;
+    let autoRollInterval = null;
     const DEV_CODE = 'D11DvbgWffhHBdwruhjSD325390S)(D)(#@IDK34fkfkm50o50opi_r-2';
 
     const els = {
@@ -596,12 +777,24 @@
       devResetDice: document.getElementById('devResetDice'),
       devPassword: document.getElementById('devPassword'),
       devUnlock: document.getElementById('devUnlock'),
+      autoRollToggle: document.getElementById('autoRollToggle'),
+      autoRollCheckbox: document.getElementById('autoRollCheckbox'),
+      shopTab: document.getElementById('shopTab'),
+      achievementsTab: document.getElementById('achievementsTab'),
+      achievementsList: document.getElementById('achievementsList'),
+      buffIcons: document.getElementById('buffIcons'),
+      luckBuffIcon: document.getElementById('luckBuffIcon'),
+      pointsBuffIcon: document.getElementById('pointsBuffIcon'),
     };
 
     function setCoins(next) {
       coins = Math.max(0, next);
       els.coinAmount.textContent = String(coins);
       localStorage.setItem(STORAGE_KEYS.coins, String(coins));
+
+      if (coins >= 1000) {
+        unlockAchievement('niceEarnings');
+      }
     }
 
     function setCoinRemainder(next) {
@@ -666,6 +859,8 @@
       renderShop();
       updatePetVisibility();
       updateDiceAppearance();
+      updateAutoRollStatus();
+      stopAutoRoll();
     }
 
     function handleDevUnlock() {
@@ -699,6 +894,17 @@
       return ownedTracks.includes(id);
     }
 
+    function unlockAchievement(id) {
+      if (achievements.includes(id)) return;
+      achievements = [...achievements, id];
+      saveAchievements();
+      renderAchievements();
+    }
+
+    function saveAchievements() {
+      localStorage.setItem(STORAGE_KEYS.achievements, JSON.stringify(achievements));
+    }
+
     function buyTrack(id) {
       const track = tracks.find((t) => t.id === id);
       if (!track) return;
@@ -714,6 +920,7 @@
       renderShop();
       updatePetVisibility();
       updateDiceAppearance();
+      updateAutoRollStatus();
     }
 
     function updatePetVisibility() {
@@ -726,6 +933,44 @@
       const hasSilverDice = isOwned('silverDice');
       els.die.classList.toggle('bronze', hasBronzeDice);
       els.die.classList.toggle('silver', hasSilverDice);
+    }
+
+    function startAutoRoll() {
+      if (autoRollInterval) return;
+      autoRollInterval = setInterval(() => {
+        if (!isRolling) {
+          roll();
+        }
+      }, 10000);
+    }
+
+    function stopAutoRoll() {
+      if (autoRollInterval) {
+        clearInterval(autoRollInterval);
+        autoRollInterval = null;
+      }
+    }
+
+    function updateAutoRollStatus() {
+      const ownsAutoRoll = isOwned('autoRoll');
+      els.autoRollToggle.classList.toggle('visible', ownsAutoRoll);
+      els.autoRollCheckbox.checked = ownsAutoRoll && autoRollInterval !== null;
+      
+      if (ownsAutoRoll && els.autoRollCheckbox.checked) {
+        startAutoRoll();
+      } else {
+        stopAutoRoll();
+      }
+    }
+
+    function handleAutoRollToggle() {
+      if (!isOwned('autoRoll')) return;
+      
+      if (els.autoRollCheckbox.checked) {
+        startAutoRoll();
+      } else {
+        stopAutoRoll();
+      }
     }
 
     function playPet() {
@@ -751,6 +996,8 @@
         console.log('Could not load pet audio, but continuing without sound');
       }
     }
+
+    els.autoRollCheckbox.addEventListener('change', handleAutoRollToggle);
 
     function stopMusic() {
       if (!musicAudio) return;
@@ -854,6 +1101,57 @@
       }
     }
 
+    function renderAchievements() {
+      els.achievementsList.innerHTML = '';
+      for (const achievement of achievementDefs) {
+        const row = document.createElement('div');
+        row.className = 'achievement';
+        if (achievements.includes(achievement.id)) {
+          row.classList.add('unlocked');
+        }
+
+        const icon = document.createElement('div');
+        icon.className = 'achievement-icon';
+        icon.textContent = achievement.icon;
+
+        const info = document.createElement('div');
+        info.className = 'achievement-info';
+
+        const name = document.createElement('div');
+        name.className = 'achievement-name';
+        name.textContent = achievement.name;
+
+        const desc = document.createElement('div');
+        desc.className = 'achievement-desc';
+        desc.textContent = achievement.desc;
+
+        info.appendChild(name);
+        info.appendChild(desc);
+
+        row.appendChild(icon);
+        row.appendChild(info);
+        els.achievementsList.appendChild(row);
+      }
+    }
+
+    function switchTab(tabName) {
+      const shopContent = document.getElementById('shopContent');
+      const achievementsContent = document.getElementById('achievementsContent');
+
+      if (tabName === 'shop') {
+        els.shopTab.classList.add('active');
+        els.achievementsTab.classList.remove('active');
+        shopContent.classList.add('active');
+        achievementsContent.classList.remove('active');
+      } else {
+        els.shopTab.classList.remove('active');
+        els.achievementsTab.classList.add('active');
+        shopContent.classList.remove('active');
+        achievementsContent.classList.add('active');
+        renderAchievements();
+      }
+    }
+
     const PIPS = {
       1: ['c'],
       2: ['tl', 'br'],
@@ -887,7 +1185,51 @@
       return s;
     }
 
+    let luckMultiplier = 1;
+    let pointsMultiplier = 1;
+    let rollsSinceSix = 0;
+    const MAX_LUCK_MULTIPLIER = 5;
+    const MAX_POINTS_MULTIPLIER = 32;
+
+    function initBuffIcons() {
+      els.luckBuffIcon.src = 'Projekt bez nazwy (1).png';
+      els.pointsBuffIcon.src = 'Projekt bez nazwy (2).png';
+    }
+
+    function updateBuffIcons() {
+      els.luckBuffIcon.classList.toggle('visible', luckMultiplier > 1);
+      els.pointsBuffIcon.classList.toggle('visible', pointsMultiplier > 1);
+    }
+
+    function getEffectiveCoinMultiplier() {
+      return getCoinMultiplier() * pointsMultiplier;
+    }
+
+    function resetRollSixBuffs() {
+      luckMultiplier = 1;
+      pointsMultiplier = 1;
+      rollsSinceSix = 0;
+      updateBuffIcons();
+    }
+
+    function applyRollSixBuff() {
+      luckMultiplier = Math.min(MAX_LUCK_MULTIPLIER, luckMultiplier + 1);
+      pointsMultiplier = Math.min(MAX_POINTS_MULTIPLIER, pointsMultiplier * 2);
+      rollsSinceSix = 0;
+      updateBuffIcons();
+    }
+
+    function biasedRollD6() {
+      const baseChance = 1 / 6;
+      const sixChance = Math.min(0.9, baseChance * luckMultiplier);
+      const r = Math.random();
+      if (r < sixChance) return 6;
+      return randomIntInclusive(1, 5);
+    }
+
     let isRolling = false;
+    let lastRollAt = 0;
+    const ROLL_COOLDOWN_MS = 10000;
     function setRolling(rolling) {
       isRolling = rolling;
       els.rollBtn.disabled = rolling;
@@ -904,6 +1246,10 @@
 
     function roll() {
       if (isRolling) return;
+
+      const now = Date.now();
+      if (now - lastRollAt < ROLL_COOLDOWN_MS) return;
+      lastRollAt = now;
       setRolling(true);
 
       const mode = els.mode.value;
@@ -915,10 +1261,24 @@
           showBigNumber(n);
           els.result.textContent = `Googol roll: ${n}`;
         } else {
-          const v = randomIntInclusive(1, 6);
+          const v = biasedRollD6();
           renderPipDie(v);
           els.result.textContent = `You rolled: ${v}`;
-          awardCoins(1);
+          awardCoins(1 * pointsMultiplier);
+
+          // Unlock first roll achievement
+          if (!achievements.includes('firstRoll')) {
+            unlockAchievement('firstRoll');
+          }
+
+          if (v === 6) {
+            applyRollSixBuff();
+          } else {
+            rollsSinceSix += 1;
+            if (rollsSinceSix >= 3) {
+              resetRollSixBuffs();
+            }
+          }
         }
         setRolling(false);
       }, delayMs);
@@ -933,19 +1293,20 @@
       }
     });
 
-    // Initial render
-    setCoins(coins);
-    renderPipDie(1);
-    updatePetVisibility();
-    updateDiceAppearance();
-    
-    // Ensure dev panel is hidden on load
-    els.devPanel.classList.remove('open');
+    els.shopTab.addEventListener('click', () => switchTab('shop'));
+    els.achievementsTab.addEventListener('click', () => switchTab('achievements'));
+
+    els.devUnlock.addEventListener('click', handleDevUnlock);
+    els.devPassword.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleDevUnlock();
+      }
+    });
 
     els.devMaxCoins.addEventListener('click', grantMaxCoins);
     els.devResetCoins.addEventListener('click', resetCoins);
     els.devResetDice.addEventListener('click', resetDice);
-    els.devUnlock.addEventListener('click', handleDevUnlock);
 
     els.devPanel.addEventListener('click', (e) => {
       if (e.target === els.devPanel) {
