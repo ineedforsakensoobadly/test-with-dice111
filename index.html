@@ -863,7 +863,36 @@
     }
 
     function visitCultAltar() {
-      visitCultAltar();
+      const cost = 5;
+      if (superDicers < cost) {
+        alert(`Not enough Super Dicers! You need ${cost} Super Dicers to visit the Cult Altar.`);
+        return;
+      }
+      
+      const confirmVisit = confirm(
+        `⚠️ CULT ALTAR CONFIRMATION\n\n` +
+        `This will cost you ${cost} Super Dicers and you will receive:\n` +
+        `• Permanent background change to map1.png\n` +
+        `• 5% chance of cursed dice effect (2 minutes)\n\n` +
+        `The cursed effect will prevent coin earnings from rolls.\n\n` +
+        `Are you sure you want to proceed?`
+      );
+      
+      if (!confirmVisit) return;
+      
+      setSuperDicers(superDicers - cost);
+      
+      // Set permanent background
+      setHasBackground(true);
+      
+      // 5% chance to curse the dice
+      if (Math.random() < 0.05) {
+        const curseDuration = 2 * 60 * 1000; // 2 minutes in milliseconds
+        setCursedUntil(Date.now() + curseDuration);
+        alert('⚠️ You have been CURSED! Your dice will not earn coins for 2 minutes!');
+      } else {
+        alert('🎉 The Cult Altar has blessed you! Your background has been permanently changed!');
+      }
     }
 
     function buySuperDice() {
