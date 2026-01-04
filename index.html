@@ -654,6 +654,12 @@
   </div>
 
   <button class="shop-btn" id="shopBtn" type="button">Shop</button>
+  <div class="potion-icon" id="potionIcon" aria-label="Luck Potion Active" style="display: none;">
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+      <img src="luck-potion.png" alt="Luck Potion" style="width: 40px; height: 40px; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.2));" />
+      <div id="potionTimer" style="font-size: 10px; font-weight: 700; color: white; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);"></div>
+    </div>
+  </div>
   <div class="modal" id="shopModal" aria-hidden="true">
     <div class="modal-card" role="dialog" aria-modal="true" aria-label="Shop">
       <button class="modal-close" id="shopClose" type="button" aria-label="Close">×</button>
@@ -663,6 +669,7 @@
         <button class="shop-tab active" id="shopTab" type="button">Shop</button>
         <button class="shop-tab" id="achievementsTab" type="button">Achievements</button>
         <button class="shop-tab" id="locationsTab" type="button">Locations</button>
+        <button class="shop-tab" id="potionsTab" type="button">Potions</button>
       </div>
       
       <div class="shop-content active" id="shopContent">
@@ -683,6 +690,10 @@
       
       <div class="shop-content" id="locationsContent">
         <div class="locations-list" id="locationsList"></div>
+      </div>
+      
+      <div class="shop-content" id="potionsContent">
+        <div class="potions-list" id="potionsList"></div>
       </div>
     </div>
   </div>
@@ -738,6 +749,7 @@
       superDicers: 'superDicers',
       cursedUntil: 'cursedUntil',
       hasBackground: 'hasBackground',
+      luckPotionUntil: 'luckPotionUntil',
     };
 
     function readInt(key, fallback) {
@@ -757,14 +769,15 @@
     let superDicers = readInt(STORAGE_KEYS.superDicers, 0);
     let cursedUntil = readInt(STORAGE_KEYS.cursedUntil, 0);
     let hasBackground = readInt(STORAGE_KEYS.hasBackground, 0);
+    let luckPotionUntil = readInt(STORAGE_KEYS.luckPotionUntil, 0);
 
     const tracks = [
       { id: '67', name: '67', src: '67.mp3', cost: 67, playable: true },
       { id: 'lilgod', name: 'lil god', src: 'lil-god.mp3', cost: 676, playable: false, pet: true },
-      { id: 'bronzeDice', name: 'Bronze Dice', src: '', cost: 150, playable: false, pet: false, multiplier: 1.5 },
-      { id: 'silverDice', name: 'Silver Dice', src: '', cost: 300, playable: false, pet: false, multiplier: 2 },
-      { id: 'autoRoll', name: 'Auto Dice Roll', src: '', cost: 1000, playable: false, pet: false, autoRoll: true },
-      { id: 'superDice', name: 'Super Dice', src: '', cost: 3, superDiceCost: 3, multiplier: 5 },
+      { id: 'bronzeDice', name: 'Bronze Dice', src: '', cost: 150, playable: false, pet: false, multiplier: 1.5, requires: [] },
+      { id: 'silverDice', name: 'Silver Dice', src: '', cost: 300, playable: false, pet: false, multiplier: 2, requires: ['bronzeDice'] },
+      { id: 'autoRoll', name: 'Auto Dice Roll', src: '', cost: 1000, playable: false, pet: false, autoRoll: true, requires: ['silverDice'] },
+      { id: 'superDice', name: 'Super Dice', src: '', cost: 3, superDiceCost: 3, multiplier: 5, requires: ['silverDice'] },
     ];
 
     let ownedTracks = (() => {
@@ -797,6 +810,7 @@
     let musicAudio = null;
     let petAudio = null;
     let autoRollInterval = null;
+    let potionTimerInterval = null;
     const DEV_CODE = 'D11DvbgWffhHBdwruhjSD325390S)(D)(#@IDK34fkfkm50o50opi_r-2';
 
     const els = {
@@ -828,6 +842,10 @@
       achievementsList: document.getElementById('achievementsList'),
       locationsTab: document.getElementById('locationsTab'),
       locationsList: document.getElementById('locationsList'),
+      potionsTab: document.getElementById('potionsTab'),
+      potionsList: document.getElementById('potionsList'),
+      potionIcon: document.getElementById('potionIcon'),
+      potionTimer: document.getElementById('potionTimer'),
       buffIcons: document.getElementById('buffIcons'),
       luckBuffIcon: document.getElementById('luckBuffIcon'),
       pointsBuffIcon: document.getElementById('pointsBuffIcon'),
@@ -1012,6 +1030,11 @@
       return ownedTracks.includes(id);
     }
 
+    function canPurchase(track) {
+      if (!track.requires || track.requires.length === 0) return true;
+      return track.requires.every(req => isOwned(req));
+    }
+
     function unlockAchievement(id) {
       if (achievements.includes(id)) return;
       achievements = [...achievements, id];
@@ -1046,10 +1069,103 @@
       }
     }
 
+    function hasLuckPotion() {
+      const now = Date.now();
+      return luckPotionUntil > now;
+    }
+
+    function setLuckPotionUntil(timestamp) {
+      luckPotionUntil = timestamp;
+      localStorage.setItem(STORAGE_KEYS.luckPotionUntil, String(luckPotionUntil));
+      updatePotionIcon();
+    }
+
+    function updatePotionIcon() {
+      const hasPotion = hasLuckPotion();
+      els.potionIcon.style.display = hasPotion ? 'block' : 'none';
+      
+      if (hasPotion) {
+        startPotionTimer();
+      } else {
+        stopPotionTimer();
+      }
+    }
+
+    function startPotionTimer() {
+      // Clear existing timer if any
+      stopPotionTimer();
+      
+      // Update timer immediately
+      updatePotionTimerDisplay();
+      
+      // Start interval to update every second
+      potionTimerInterval = setInterval(() => {
+        updatePotionTimerDisplay();
+        
+        // Hide icon if potion expired
+        if (!hasLuckPotion()) {
+          stopPotionTimer();
+          els.potionIcon.style.display = 'none';
+        }
+      }, 1000);
+    }
+
+    function stopPotionTimer() {
+      if (potionTimerInterval) {
+        clearInterval(potionTimerInterval);
+        potionTimerInterval = null;
+      }
+    }
+
+    function updatePotionTimerDisplay() {
+      const now = Date.now();
+      const timeLeft = Math.max(0, luckPotionUntil - now);
+      
+      if (timeLeft > 0) {
+        const minutes = Math.floor(timeLeft / (60 * 1000));
+        const seconds = Math.floor((timeLeft % (60 * 1000)) / 1000);
+        els.potionTimer.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+      } else {
+        els.potionTimer.textContent = '';
+      }
+    }
+
+    function buyLuckPotion() {
+      const cost = 1500;
+      if (coins < cost) {
+        alert('Not enough coins! You need 1500 coins for the Luck Potion.');
+        return;
+      }
+      
+      const confirmBuy = confirm(
+        `⚠️ LUCK POTION CONFIRMATION\n\n` +
+        `This will cost you ${cost} coins and you will receive:\n` +
+        `• 2x chance to roll a 6 for 20 minutes\n` +
+        `• Luck potion icon will appear next to shop button\n\n` +
+        `Are you sure you want to purchase the Luck Potion?`
+      );
+      
+      if (!confirmBuy) return;
+      
+      setCoins(coins - cost);
+      const duration = 20 * 60 * 1000; // 20 minutes in milliseconds
+      setLuckPotionUntil(Date.now() + duration);
+      
+      alert('🍀 Luck Potion activated! You now have 2x chance to roll a 6 for 20 minutes!');
+    }
+
     function buyTrack(id) {
       const track = tracks.find((t) => t.id === id);
       if (!track) return;
       if (isOwned(id)) return;
+      
+      // Check progression requirements
+      if (!canPurchase(track)) {
+        const missing = track.requires.find(req => !isOwned(req));
+        const missingTrack = tracks.find(t => t.id === missing);
+        alert(`You need to purchase ${missingTrack.name} first!`);
+        return;
+      }
       
       // Handle Super Dice purchase
       if (track.superDiceCost) {
@@ -1286,7 +1402,9 @@
         if (track.id === 'bronzeDice') {
           meta.innerHTML = `1.5x coins • ${track.cost} <img src="dice-coin.png" alt="Coin" style="width:16px;height:16px;vertical-align:-3px;" />`;
         } else if (track.id === 'silverDice') {
-          meta.innerHTML = `2x coins • ${track.cost} <img src="dice-coin.png" alt="Coin" style="width:16px;height:16px;vertical-align:-3px;" />`;
+          meta.innerHTML = `2x coins • ${track.cost} <img src="dice-coin.png" alt="Coin" style="width:16px;height:16px;vertical-align:-3px;" /> • Requires Bronze Dice`;
+        } else if (track.id === 'autoRoll') {
+          meta.innerHTML = `Automatic rolling every 10 seconds • ${track.cost} <img src="dice-coin.png" alt="Coin" style="width:16px;height:16px;vertical-align:-3px;" /> • Requires Silver Dice`;
         } else {
           meta.innerHTML = `${track.cost} <img src="dice-coin.png" alt="Coin" style="width:16px;height:16px;vertical-align:-3px;" />`;
         }
@@ -1315,6 +1433,21 @@
           buy.type = 'button';
           buy.className = 'btn';
           buy.textContent = 'Buy';
+          
+          // Disable button if requirements aren't met
+          if (!canPurchase(track)) {
+            buy.disabled = true;
+            const missing = track.requires.find(req => !isOwned(req));
+            const missingTrack = tracks.find(t => t.id === missing);
+            buy.textContent = `Requires ${missingTrack.name}`;
+          } else if (track.superDiceCost && superDicers < track.superDiceCost) {
+            buy.disabled = true;
+            buy.textContent = `Not enough Super Dicers`;
+          } else if (!track.superDiceCost && coins < track.cost) {
+            buy.disabled = true;
+            buy.textContent = 'Not enough coins';
+          }
+          
           buy.addEventListener('click', () => buyTrack(track.id));
           right.appendChild(buy);
         }
@@ -1398,34 +1531,72 @@
       els.locationsList.appendChild(superDiceItem);
     }
 
+    function renderPotions() {
+      els.potionsList.innerHTML = '';
+      
+      // Luck Potion
+      const luckPotion = document.createElement('div');
+      luckPotion.className = 'shop-item';
+      luckPotion.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <strong>🍀 Luck Potion</strong>
+            <div style="font-size: 12px; color: rgba(31, 36, 48, 0.7); margin-top: 4px;">
+              2x chance to roll a 6 for 20 minutes
+            </div>
+          </div>
+          <button class="btn" onclick="buyLuckPotion()">Buy (1500 coins)</button>
+        </div>
+      `;
+      
+      els.potionsList.appendChild(luckPotion);
+    }
+
     function switchTab(tabName) {
       const shopContent = document.getElementById('shopContent');
       const achievementsContent = document.getElementById('achievementsContent');
       const locationsContent = document.getElementById('locationsContent');
+      const potionsContent = document.getElementById('potionsContent');
 
       if (tabName === 'shop') {
         els.shopTab.classList.add('active');
         els.achievementsTab.classList.remove('active');
         els.locationsTab.classList.remove('active');
+        els.potionsTab.classList.remove('active');
         shopContent.classList.add('active');
         achievementsContent.classList.remove('active');
         locationsContent.classList.remove('active');
+        potionsContent.classList.remove('active');
       } else if (tabName === 'achievements') {
         els.shopTab.classList.remove('active');
         els.achievementsTab.classList.add('active');
         els.locationsTab.classList.remove('active');
+        els.potionsTab.classList.remove('active');
         shopContent.classList.remove('active');
         achievementsContent.classList.add('active');
         locationsContent.classList.remove('active');
+        potionsContent.classList.remove('active');
         renderAchievements();
       } else if (tabName === 'locations') {
         els.shopTab.classList.remove('active');
         els.achievementsTab.classList.remove('active');
         els.locationsTab.classList.add('active');
+        els.potionsTab.classList.remove('active');
         shopContent.classList.remove('active');
         achievementsContent.classList.remove('active');
         locationsContent.classList.add('active');
+        potionsContent.classList.remove('active');
         renderLocations();
+      } else if (tabName === 'potions') {
+        els.shopTab.classList.remove('active');
+        els.achievementsTab.classList.remove('active');
+        els.locationsTab.classList.remove('active');
+        els.potionsTab.classList.add('active');
+        shopContent.classList.remove('active');
+        achievementsContent.classList.remove('active');
+        locationsContent.classList.remove('active');
+        potionsContent.classList.add('active');
+        renderPotions();
       }
     }
 
@@ -1498,7 +1669,14 @@
 
     function biasedRollD6() {
       const baseChance = 1 / 6;
-      const sixChance = Math.min(0.9, baseChance * luckMultiplier);
+      let totalLuckMultiplier = luckMultiplier;
+      
+      // Add luck potion bonus (2x chance for 6)
+      if (hasLuckPotion()) {
+        totalLuckMultiplier *= 2;
+      }
+      
+      const sixChance = Math.min(0.9, baseChance * totalLuckMultiplier);
       const r = Math.random();
       if (r < sixChance) return 6;
       return randomIntInclusive(1, 5);
@@ -1573,6 +1751,7 @@
     els.shopTab.addEventListener('click', () => switchTab('shop'));
     els.achievementsTab.addEventListener('click', () => switchTab('achievements'));
     els.locationsTab.addEventListener('click', () => switchTab('locations'));
+    els.potionsTab.addEventListener('click', () => switchTab('potions'));
 
     els.devUnlock.addEventListener('click', handleDevUnlock);
     els.devPassword.addEventListener('keydown', (e) => {
@@ -1610,6 +1789,10 @@
     });
     els.shopPlay.addEventListener('click', playSelected);
     els.shopStop.addEventListener('click', stopMusic);
+
+    // Initialize potion icon visibility
+    updatePotionIcon();
   </script>
 </body>
 </html>
+
