@@ -614,6 +614,11 @@
     <div class="coin-amount" id="coinAmount">0</div>
   </div>
 
+  <div class="currency" aria-label="Super Dicers" style="top: 70px; background: rgba(255, 215, 0, 0.92);">
+    <img class="coin-icon" src="super-dicer.png" alt="Super Dicer" />
+    <div class="coin-amount" id="superDicerAmount">0</div>
+  </div>
+
   <div class="auto-roll-toggle" id="autoRollToggle" aria-label="Auto roll toggle">
     <input type="checkbox" id="autoRollCheckbox" />
     <label for="autoRollCheckbox">Auto Roll</label>
@@ -677,6 +682,8 @@
 
         <button class="btn" id="rollBtn" type="button">Roll</button>
 
+        <button class="btn" id="rebirthBtn" type="button">Rebirth (5000 coins)</button>
+
         <div class="result" aria-live="polite">
           <div class="result-title">Result</div>
           <div class="result-value" id="result">Click the die (or Roll) to roll.</div>
@@ -701,6 +708,7 @@
       selectedTrack: 'selectedTrack',
       coinRemainder: 'coinRemainder',
       achievements: 'achievements',
+      superDicers: 'superDicers',
     };
 
     function readInt(key, fallback) {
@@ -717,6 +725,7 @@
 
     let coins = readInt(STORAGE_KEYS.coins, 0);
     let coinRemainder = readNumber(STORAGE_KEYS.coinRemainder, 0);
+    let superDicers = readInt(STORAGE_KEYS.superDicers, 0);
 
     const tracks = [
       { id: '67', name: '67', src: '67.mp3', cost: 67, playable: true },
@@ -762,7 +771,9 @@
       mode: document.getElementById('mode'),
       result: document.getElementById('result'),
       rollBtn: document.getElementById('rollBtn'),
+      rebirthBtn: document.getElementById('rebirthBtn'),
       coinAmount: document.getElementById('coinAmount'),
+      superDicerAmount: document.getElementById('superDicerAmount'),
       shopBtn: document.getElementById('shopBtn'),
       shopModal: document.getElementById('shopModal'),
       shopClose: document.getElementById('shopClose'),
@@ -795,6 +806,12 @@
       if (coins >= 1000) {
         unlockAchievement('niceEarnings');
       }
+    }
+
+    function setSuperDicers(next) {
+      superDicers = Math.max(0, next);
+      els.superDicerAmount.textContent = String(superDicers);
+      localStorage.setItem(STORAGE_KEYS.superDicers, String(superDicers));
     }
 
     function setCoinRemainder(next) {
@@ -972,6 +989,52 @@
         stopAutoRoll();
       }
     }
+
+    function rebirth() {
+      const cost = 5000;
+      if (coins < cost) {
+        alert('Not enough coins! You need 5000 coins to rebirth.');
+        return;
+      }
+      
+      const confirmRebirth = confirm(
+        `⚠️ REBIRTH CONFIRMATION\n\n` +
+        `This will cost you ${cost} coins and you will receive:\n` +
+        `• 1 Super Dicer\n\n` +
+        `Your coins will be reduced by ${cost} but all other progress will remain.\n\n` +
+        `Are you sure you want to rebirth?`
+      );
+      
+      if (!confirmRebirth) return;
+      
+      setCoins(coins - cost);
+      setSuperDicers(superDicers + 1);
+      
+      // Play rebirth sound
+      try {
+        const rebirthAudio = new Audio('minecraft_click.mp3');
+        rebirthAudio.addEventListener('error', () => {
+          console.log('Rebirth audio file not found, but continuing without sound');
+        });
+        void rebirthAudio.play().catch(() => {
+          console.log('Rebirth audio play failed, but continuing without sound');
+        });
+      } catch (e) {
+        console.log('Could not load rebirth audio, but continuing without sound');
+      }
+      
+      alert('🎉 Rebirth successful! You received 1 Super Dicer!');
+    }
+
+    els.devResetDice.addEventListener('click', resetDice);
+    els.devResetCoins.addEventListener('click', resetCoins);
+    els.devMaxCoins.addEventListener('click', grantMaxCoins);
+    els.devUnlock.addEventListener('click', handleDevUnlock);
+    els.autoRollCheckbox.addEventListener('change', handleAutoRollToggle);
+    els.rebirthBtn.addEventListener('click', rebirth);
+
+    // Initialize displays
+    els.superDicerAmount.textContent = String(superDicers);
 
     function playPet() {
       if (!isOwned('lilgod')) return;
@@ -1192,8 +1255,8 @@
     const MAX_POINTS_MULTIPLIER = 32;
 
     function initBuffIcons() {
-      els.luckBuffIcon.src = 'Projekt bez nazwy (1).png';
-      els.pointsBuffIcon.src = 'Projekt bez nazwy (2).png';
+      els.luckBuffIcon.src = 'luck.png';
+      els.pointsBuffIcon.src = 'multi.png';
     }
 
     function updateBuffIcons() {
