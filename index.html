@@ -1,12 +1,9 @@
-!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dice Roller</title>
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
     <style>
         * {
             margin: 0;
@@ -482,137 +479,6 @@
             padding: 20px;
         }
 
-        .user-list-container {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            width: 100%;
-            max-width: 250px;
-            height: 500px;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        .user-list-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 15px 20px;
-            font-size: 1.2em;
-            font-weight: bold;
-            text-align: center;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .user-count {
-            font-size: 0.9em;
-            opacity: 0.9;
-        }
-
-        .refresh-users-btn {
-            background: rgba(255, 255, 255, 0.2);
-            border: none;
-            color: white;
-            padding: 5px 10px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.9em;
-            transition: background 0.3s;
-        }
-
-        .refresh-users-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
-        }
-
-        .user-list {
-            flex: 1;
-            overflow-y: auto;
-            padding: 15px;
-            background: #f8f9fa;
-        }
-
-        .user-item {
-            background: white;
-            padding: 12px 15px;
-            border-radius: 12px;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-            transition: transform 0.2s, box-shadow 0.2s;
-            cursor: pointer;
-        }
-
-        .user-item:hover {
-            transform: translateX(5px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-        }
-
-        .user-item.current-user {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            font-weight: bold;
-        }
-
-        .user-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 1.2em;
-            font-weight: bold;
-            color: white;
-            flex-shrink: 0;
-        }
-
-        .user-item.current-user .user-avatar {
-            background: rgba(255, 255, 255, 0.3);
-            border: 2px solid white;
-        }
-
-        .user-info-details {
-            flex: 1;
-            min-width: 0;
-        }
-
-        .user-name-display {
-            font-weight: 600;
-            margin-bottom: 4px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .user-meta {
-            font-size: 0.75em;
-            opacity: 0.7;
-        }
-
-        .user-item.current-user .user-meta {
-            opacity: 0.9;
-        }
-
-        .user-list-empty {
-            text-align: center;
-            color: #999;
-            padding: 40px 20px;
-            font-style: italic;
-        }
-
-        @media (max-width: 768px) {
-            .user-list-container {
-                max-width: 100%;
-                height: 300px;
-            }
-        }
-
         @media (max-width: 768px) {
             .main-container {
                 flex-direction: column;
@@ -625,7 +491,23 @@
     </style>
 </head>
 <body>
+    <div id="currency-bar" style="position:fixed; top:22px; left:22px; display:flex; align-items:center; z-index:1100;">
+        <img src="dice-coin.png" alt="Coin" style="width:38px;height:38px;margin-right:12px;box-shadow:0 2px 7px rgba(0,0,0,0.19);border-radius:10px;">
+        <span id="coin-amount" style="font-size:2.1em;color:#333;font-weight:bold;text-shadow:1px 1px 4px #fff">0</span>
+    </div>
     <h1>🎲 Dice Roller</h1>
+    <button onclick="openShop()" id="shop-btn" style="position: fixed; bottom: 27px; left: 32px; z-index:1150; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 14px; padding:12px 30px; font-size: 1.2em; font-weight:bold; box-shadow: 0 2px 10px #8885; cursor:pointer;">🛒 Shop</button>
+    <div id="shop-modal" style="display:none; position:fixed; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.52); z-index:2000; justify-content:center; align-items:center;">
+      <div style="background:white; border-radius:22px; max-width:95vw; width:410px; margin:24px auto; box-shadow:0 8px 50px #3338; padding:32px 18px 20px; display:flex; flex-direction:column; align-items:center; position:relative;">
+        <button style="position:absolute;top:12px;right:14px;background:none;border:none;font-size:2em;color:#888;cursor:pointer" onclick="closeShop()">&times;</button>
+        <h2 style="margin-bottom:18px; color:#764ba2;">Music Shop 🎵</h2>
+        <div id="music-shop-list" style="width:100%;"></div>
+        <div style="margin-top:22px;">
+          <button onclick="selectMusic()" style="padding:9px 20px; background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:white; border:none; border-radius:10px; font-weight:bold; font-size:1em; cursor:pointer;">Play Selected</button>
+          <button onclick="stopMusic()" style="margin-left:12px; padding:9px 18px; background:#eee; color:#222; border:none; border-radius:10px; font-weight:bold; font-size:1em; cursor:pointer;">Stop</button>
+        </div>
+      </div>
+    </div>
     
     <div class="main-container">
         <div class="dice-section">
@@ -668,20 +550,15 @@
             </div>
 
             <div class="result" id="result">Click the dice to roll! 🎲</div>
+            <div style="margin-top: 45px; margin-bottom: 10px;">
+                <label for="mode-select" style="color: white; font-size: 1.1em;">Dice Mode: </label>
+                <select id="mode-select" style="font-size: 1.1em; padding: 5px 15px; border-radius: 8px; border: none; margin-left: 5px;">
+                    <option value="6">6 sides</option>
+                    <option value="20">20 sides</option>
+                    <option value="googol">10^100 sides</option>
+                </select>
+            </div>
             <div class="instructions">Click anywhere on the dice to roll it</div>
-        </div>
-
-        <div class="user-list-container" id="user-list-container">
-            <div class="user-list-header">
-                <div>
-                    <div>👥 Users</div>
-                    <div class="user-count" id="user-count">0 users</div>
-                </div>
-                <button class="refresh-users-btn" onclick="refreshUserList()" title="Refresh">🔄</button>
-            </div>
-            <div class="user-list" id="user-list">
-                <div class="user-list-empty">No users yet</div>
-            </div>
         </div>
 
         <div class="chat-container" id="chat-container">
@@ -748,35 +625,76 @@
     </div>
 
     <script>
+        // --- Music Shop State ---
+        const musicTracks = [
+            { id: 'sixtyseven', name: 'Secret 67', src: '67.mp3', cost: 67 }
+        ];
+        let ownedTracks = JSON.parse(localStorage.getItem('ownedTracks')||'[]');
+        let selectedTrack = localStorage.getItem('selectedTrack') || '';
+        let musicAudio = null;
+
+        function openShop() {
+            document.getElementById('shop-modal').style.display = 'flex';
+            renderMusicShop();
+        }
+        function closeShop() {
+            document.getElementById('shop-modal').style.display = 'none';
+        }
+        function renderMusicShop() {
+            const list = document.getElementById('music-shop-list');
+            let html = '';
+            for (const track of musicTracks) {
+                const owned = ownedTracks.includes(track.id);
+                let coloredName = track.name;
+                if (track.id === 'sixtyseven') {
+                    const half = Math.floor(track.name.length / 2);
+                    const first = track.name.slice(0, half);
+                    const second = track.name.slice(half);
+                    coloredName = `<span style='color:gold;'>${first}</span><span style='color:red;'>${second}</span>`;
+                }
+                html += `<div style='display:flex;align-items:center;justify-content:space-between;width:100%;margin-bottom:16px;'>`
+                     + `<div><b>${coloredName}</b><br><span style='color:#999; font-size:0.97em;'>${track.cost} <img src='dice-coin.png' alt='coin' style='width:1.3em;vertical-align:-0.28em'></span></div> `
+                     + (owned ? `<input name='music-pick' type='radio' value='${track.id}' ${selectedTrack==track.id ? 'checked' : ''} onchange='pickMusic(event)'>` : `<button onclick='buyTrack(\"${track.id}\")' style='padding:7px 16px; background:#764ba2;color:white;border:none;border-radius:8px;font-weight:bold;cursor:pointer;'>Buy</button>`)
+                     + '</div>';
+            }
+            list.innerHTML = html;
+        }
+        function buyTrack(id) {
+            const track = musicTracks.find(t=>t.id===id);
+            if (!track) return;
+            if (coinAmount < track.cost) {alert('Not enough coins!');return;}
+            coinAmount -= track.cost;
+            document.getElementById('coin-amount').textContent = coinAmount;
+            localStorage.setItem('coinAmountDice', coinAmount);
+            ownedTracks.push(id);
+            localStorage.setItem('ownedTracks', JSON.stringify(ownedTracks));
+            renderMusicShop();
+        }
+        function pickMusic(e) {
+            selectedTrack = e.target.value;
+            localStorage.setItem('selectedTrack', selectedTrack);
+        }
+        function selectMusic() {
+            if (!selectedTrack) {alert('Pick a track first!'); return;}
+            const track = musicTracks.find(t=>t.id===selectedTrack);
+            if (!track) return;
+            stopMusic();
+            musicAudio = new Audio(track.src);
+            musicAudio.loop = true;
+            musicAudio.play();
+        }
+        function stopMusic() {
+            if (musicAudio) { musicAudio.pause(); musicAudio.currentTime = 0; }
+        }
+        // Resume owned/selected tracks state on reload
+        document.addEventListener('DOMContentLoaded', ()=>{
+            ownedTracks = JSON.parse(localStorage.getItem('ownedTracks')||'[]');
+            selectedTrack = localStorage.getItem('selectedTrack') || '';
+        });
         let username = null;
         let currentUser = null;
         let messages = JSON.parse(localStorage.getItem('diceChatMessages')) || [];
         let accounts = JSON.parse(localStorage.getItem('diceChatAccounts')) || {};
-        
-        // Firebase configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyBoGVgsrLMp6K1URAQHXi5vX_AGpt1gGk4",
-            authDomain: "dice-roller-12c2c.firebaseapp.com",
-            databaseURL: "https://dice-roller-12c2c-default-rtdb.firebaseio.com/",
-            projectId: "dice-roller-12c2c",
-            storageBucket: "dice-roller-12c2c.firebasestorage.app",
-            messagingSenderId: "709276724324",
-            appId: "1:709276724324:web:0427178e64b1ccadd68371"
-        };
-        
-        // Initialize Firebase
-        let firebaseApp = null;
-        let database = null;
-        let firebaseInitialized = false;
-        
-        try {
-            firebaseApp = firebase.initializeApp(firebaseConfig);
-            database = firebase.database();
-            firebaseInitialized = true;
-        } catch (error) {
-            console.log('Firebase not configured, using local storage only');
-            firebaseInitialized = false;
-        }
 
         // Simple hash function for passwords (not cryptographically secure, but better than plain text)
         function hashPassword(password) {
@@ -791,159 +709,8 @@
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', () => {
-            initializeSharedStorage();
-            refreshUserList(); // Always load user list
             checkAuth();
-            startSync();
         });
-
-        // Shared storage functions using Firebase Realtime Database
-        function initializeSharedStorage() {
-            if (!firebaseInitialized) {
-                console.log('Firebase not initialized, using local storage only');
-                return;
-            }
-            
-            // Listen for real-time updates
-            const accountsRef = database.ref('accounts');
-            const messagesRef = database.ref('messages');
-            
-            // Listen for account changes - Firebase is the source of truth
-            accountsRef.on('value', (snapshot) => {
-                const sharedAccounts = snapshot.val() || {};
-                // Use Firebase data as primary source
-                accounts = sharedAccounts;
-                // Only add local accounts that aren't in Firebase (for offline support)
-                const localAccounts = JSON.parse(localStorage.getItem('diceChatAccounts')) || {};
-                Object.keys(localAccounts).forEach(key => {
-                    if (!accounts[key]) {
-                        accounts[key] = localAccounts[key];
-                    }
-                });
-                localStorage.setItem('diceChatAccounts', JSON.stringify(accounts));
-                refreshUserList();
-            });
-            
-            // Listen for message changes
-            messagesRef.on('value', (snapshot) => {
-                const sharedMessagesData = snapshot.val();
-                const messageMap = new Map();
-                
-                // Add local messages
-                messages.forEach(msg => {
-                    messageMap.set(`${msg.username}-${msg.timestamp}`, msg);
-                });
-                
-                // Add shared messages - Firebase returns objects, convert to array
-                if (sharedMessagesData) {
-                    let sharedMessages = [];
-                    if (Array.isArray(sharedMessagesData)) {
-                        sharedMessages = sharedMessagesData;
-                    } else if (typeof sharedMessagesData === 'object' && sharedMessagesData !== null) {
-                        // Convert object to array
-                        sharedMessages = Object.values(sharedMessagesData);
-                    }
-                    
-                    if (sharedMessages && sharedMessages.length > 0) {
-                        sharedMessages.forEach(msg => {
-                            if (msg && msg.username && msg.timestamp) {
-                                messageMap.set(`${msg.username}-${msg.timestamp}`, msg);
-                            }
-                        });
-                    }
-                }
-                
-                messages = Array.from(messageMap.values()).sort((a, b) => a.timestamp - b.timestamp);
-                localStorage.setItem('diceChatMessages', JSON.stringify(messages));
-                
-                if (username) {
-                    loadMessages();
-                }
-            });
-            
-            // Load initial data
-            loadSharedData();
-        }
-
-        async function loadSharedData() {
-            if (!firebaseInitialized) return;
-            
-            try {
-                // Load accounts - Firebase is source of truth
-                const accountsSnapshot = await database.ref('accounts').once('value');
-                const sharedAccounts = accountsSnapshot.val() || {};
-                // Prioritize Firebase accounts, merge local only if not in Firebase
-                accounts = { ...sharedAccounts };
-                // Add any local accounts that aren't in Firebase (for offline support)
-                const localAccounts = JSON.parse(localStorage.getItem('diceChatAccounts')) || {};
-                Object.keys(localAccounts).forEach(key => {
-                    if (!accounts[key]) {
-                        accounts[key] = localAccounts[key];
-                    }
-                });
-                localStorage.setItem('diceChatAccounts', JSON.stringify(accounts));
-                
-                // Load messages
-                const messagesSnapshot = await database.ref('messages').once('value');
-                const sharedMessagesData = messagesSnapshot.val();
-                
-                if (sharedMessagesData) {
-                    let sharedMessages = [];
-                    if (Array.isArray(sharedMessagesData)) {
-                        sharedMessages = sharedMessagesData;
-                    } else if (typeof sharedMessagesData === 'object') {
-                        // Convert object to array
-                        sharedMessages = Object.values(sharedMessagesData);
-                    }
-                    
-                    if (sharedMessages.length > 0) {
-                        const messageMap = new Map();
-                        messages.forEach(msg => {
-                            messageMap.set(`${msg.username}-${msg.timestamp}`, msg);
-                        });
-                        sharedMessages.forEach(msg => {
-                            if (msg && msg.username && msg.timestamp) {
-                                messageMap.set(`${msg.username}-${msg.timestamp}`, msg);
-                            }
-                        });
-                        messages = Array.from(messageMap.values()).sort((a, b) => a.timestamp - b.timestamp);
-                        localStorage.setItem('diceChatMessages', JSON.stringify(messages));
-                        if (username) {
-                            loadMessages();
-                        }
-                    }
-                }
-                
-                refreshUserList();
-            } catch (error) {
-                console.log('Could not load shared data:', error);
-            }
-        }
-
-        async function saveSharedData() {
-            if (!firebaseInitialized) return;
-            
-            try {
-                // Save accounts to Firebase
-                await database.ref('accounts').set(accounts);
-                
-                // Save messages to Firebase (last 100)
-                // Store as array to maintain order
-                const messagesToSave = messages.slice(-100);
-                await database.ref('messages').set(messagesToSave);
-            } catch (error) {
-                console.error('Could not save to shared storage:', error);
-            }
-        }
-
-        function startSync() {
-            // Firebase handles real-time updates automatically
-            // No need for polling interval
-        }
-
-        function stopSync() {
-            // Firebase cleanup is handled automatically
-        }
 
         function checkAuth() {
             const savedUser = localStorage.getItem('diceChatCurrentUser');
@@ -973,7 +740,6 @@
             document.getElementById('display-username').textContent = username;
             document.getElementById('user-info').classList.remove('hidden');
             loadMessages();
-            refreshUserList();
         }
 
         function lockChat() {
@@ -1034,7 +800,7 @@
             }
         }
 
-        async function signup() {
+        function signup() {
             const usernameInput = document.getElementById('signup-username');
             const passwordInput = document.getElementById('signup-password');
             const confirmInput = document.getElementById('signup-confirm');
@@ -1075,38 +841,22 @@
                 return;
             }
             
-            // Check if username already exists (check both local and Firebase)
+            // Check if username already exists
             if (accounts[newUsername]) {
                 errorDiv.textContent = 'Username already exists';
                 return;
             }
             
             // Create account
-            const newAccount = {
+            accounts[newUsername] = {
                 username: newUsername,
                 passwordHash: hashPassword(password),
                 createdAt: Date.now()
             };
-            accounts[newUsername] = newAccount;
             
             localStorage.setItem('diceChatAccounts', JSON.stringify(accounts));
             
-            // Save to Firebase immediately
-            if (firebaseInitialized) {
-                try {
-                    await database.ref('accounts').child(newUsername).set(newAccount);
-                } catch (error) {
-                    console.error('Error saving account to Firebase:', error);
-                }
-            }
-            
-            // Also save all accounts to ensure sync
-            saveSharedData();
-            
             successDiv.textContent = 'Account created! Please log in.';
-            
-            // Refresh user list
-            refreshUserList();
             
             // Clear inputs
             usernameInput.value = '';
@@ -1177,74 +927,7 @@
             currentUser = null;
             localStorage.removeItem('diceChatCurrentUser');
             showAuthModal();
-            refreshUserList();
         }
-
-        function refreshUserList() {
-            const userList = document.getElementById('user-list');
-            const userCount = document.getElementById('user-count');
-            
-            // Get all accounts
-            const allAccounts = Object.values(accounts);
-            
-            // Update count
-            const count = allAccounts.length;
-            userCount.textContent = `${count} ${count === 1 ? 'user' : 'users'}`;
-            
-            // Clear current list
-            userList.innerHTML = '';
-            
-            if (allAccounts.length === 0) {
-                userList.innerHTML = '<div class="user-list-empty">No users yet</div>';
-                return;
-            }
-            
-            // Sort users: current user first, then by creation date
-            allAccounts.sort((a, b) => {
-                if (a.username === username) return -1;
-                if (b.username === username) return 1;
-                return a.createdAt - b.createdAt;
-            });
-            
-            // Create user items
-            allAccounts.forEach(account => {
-                const userItem = document.createElement('div');
-                userItem.className = 'user-item';
-                
-                if (account.username === username) {
-                    userItem.classList.add('current-user');
-                }
-                
-                // Get first letter for avatar
-                const firstLetter = account.username.charAt(0).toUpperCase();
-                
-                // Format creation date
-                const createdDate = new Date(account.createdAt);
-                const now = new Date();
-                const daysAgo = Math.floor((now - createdDate) / (1000 * 60 * 60 * 24));
-                let dateText = '';
-                if (daysAgo === 0) {
-                    dateText = 'Joined today';
-                } else if (daysAgo === 1) {
-                    dateText = 'Joined yesterday';
-                } else if (daysAgo < 7) {
-                    dateText = `Joined ${daysAgo} days ago`;
-                } else {
-                    dateText = `Joined ${createdDate.toLocaleDateString()}`;
-                }
-                
-                userItem.innerHTML = `
-                    <div class="user-avatar">${firstLetter}</div>
-                    <div class="user-info-details">
-                        <div class="user-name-display">${escapeHtml(account.username)}</div>
-                        <div class="user-meta">${dateText}</div>
-                    </div>
-                `;
-                
-                userList.appendChild(userItem);
-            });
-        }
-
 
         function handleChatKeyPress(event) {
             if (event.key === 'Enter') {
@@ -1252,7 +935,7 @@
             }
         }
 
-        async function sendMessage() {
+        function sendMessage() {
             if (!username) {
                 showAuthModal();
                 return;
@@ -1278,38 +961,6 @@
             }
             
             localStorage.setItem('diceChatMessages', JSON.stringify(messages));
-            
-            // Save to Firebase immediately
-            if (firebaseInitialized) {
-                try {
-                    // Get current messages from Firebase and add new one
-                    const messagesRef = database.ref('messages');
-                    const snapshot = await messagesRef.once('value');
-                    let currentMessages = snapshot.val() || [];
-                    
-                    // Convert to array if needed
-                    if (!Array.isArray(currentMessages) && typeof currentMessages === 'object') {
-                        currentMessages = Object.values(currentMessages);
-                    }
-                    
-                    // Add new message
-                    currentMessages.push(message);
-                    
-                    // Keep only last 100
-                    if (currentMessages.length > 100) {
-                        currentMessages = currentMessages.slice(-100);
-                    }
-                    
-                    // Save back to Firebase
-                    await messagesRef.set(currentMessages);
-                } catch (error) {
-                    console.error('Error saving message to Firebase:', error);
-                    // Fallback to saveSharedData
-                    saveSharedData();
-                }
-            } else {
-                saveSharedData();
-            }
             
             displayMessage(message, true);
             chatInput.value = '';
@@ -1356,31 +1007,59 @@
             return div.innerHTML;
         }
 
+        // Load coin amount from localStorage or zero
+        let coinAmount = parseInt(localStorage.getItem('coinAmountDice') || '0', 10);
+        document.addEventListener('DOMContentLoaded', () => {
+            const coinAmountElem = document.getElementById('coin-amount');
+            if (coinAmountElem) coinAmountElem.textContent = coinAmount;
+        });
+
         function rollDice() {
             const dice = document.getElementById('dice');
             const diceFace = document.getElementById('dice-face');
             const result = document.getElementById('result');
-            
-            // Add rolling animation
+            const mode = document.getElementById('mode-select').value;
+
             dice.classList.add('rolling');
-            
-            // Disable clicking during animation
             dice.style.pointerEvents = 'none';
-            
-            // Generate random number between 1 and 6
-            const randomNumber = Math.floor(Math.random() * 6) + 1;
-            
-            // After animation completes, update the dice face
+
+            // Helper for generating googol (10^100) random integers as string
+            function randomGoogol() {
+                // Get 100 random digits, leading nonzero
+                let digits = '' + (Math.floor(Math.random() * 9) + 1);
+                for (let i = 1; i < 100; i++) {
+                    digits += Math.floor(Math.random() * 10);
+                }
+                return digits;
+            }
+
+            let maxSides;
+            let rolledValue;
+            if (mode === 'googol') {
+                rolledValue = randomGoogol();
+                maxSides = '10^100';
+            } else {
+                maxSides = parseInt(mode, 10);
+                rolledValue = Math.floor(Math.random() * maxSides) + 1;
+            }
+
             setTimeout(() => {
                 dice.classList.remove('rolling');
-                
-                // Update the visible face based on the random number
-                updateDiceFace(diceFace, randomNumber);
-                
-                // Show result
-                result.textContent = `You rolled: ${randomNumber}! 🎉`;
-                
-                // Re-enable clicking
+                // For googol mode, show the number directly
+                if (mode == 'googol') {
+                    diceFace.className = 'dice-face front';
+                    diceFace.innerHTML = '<span style="font-size:20px; color:#333; word-break: break-all;">' + rolledValue + '</span>';
+                    result.textContent = `Googol dice: ${rolledValue}`;
+                } else {
+                    updateDiceFace(diceFace, rolledValue);
+                    result.textContent = `You rolled: ${rolledValue} (1-${maxSides}) 🎉`;
+                    // Only add coins if 6-sided dice
+                    if (mode === '6') {
+                        coinAmount++;
+                        document.getElementById('coin-amount').textContent = coinAmount;
+                        localStorage.setItem('coinAmountDice', coinAmount);
+                    }
+                }
                 dice.style.pointerEvents = 'auto';
             }, 600);
         }
