@@ -415,6 +415,17 @@
       background: rgba(255, 255, 255, 0.9);
     }
 
+    .die.super {
+      background: linear-gradient(135deg, rgba(138, 43, 226, 0.9), rgba(138, 43, 226, 0.7));
+      border: 3px solid rgba(138, 43, 226, 0.8);
+      box-shadow: 0 18px 40px rgba(138, 43, 226, 0.4);
+    }
+
+    .die.super .pip {
+      background: rgba(255, 255, 255, 0.95);
+      box-shadow: 0 0 4px rgba(255, 255, 255, 0.3);
+    }
+
     .die.rolling {
       animation: wobble 600ms ease-in-out;
     }
@@ -479,6 +490,17 @@
 
     .shop-item.silver-dice strong {
       color: rgba(128, 128, 128, 0.9);
+    }
+
+    .shop-item.super-dice {
+      background: linear-gradient(135deg, rgba(138, 43, 226, 0.2), rgba(138, 43, 226, 0.1));
+      border: 1px solid rgba(138, 43, 226, 0.4);
+      box-shadow: 0 4px 12px rgba(138, 43, 226, 0.3);
+    }
+
+    .shop-item.super-dice strong {
+      color: rgba(138, 43, 226, 0.9);
+      text-shadow: 0 1px 2px rgba(138, 43, 226, 0.5);
     }
 
     .dev-panel {
@@ -640,6 +662,7 @@
       <div class="shop-tabs">
         <button class="shop-tab active" id="shopTab" type="button">Shop</button>
         <button class="shop-tab" id="achievementsTab" type="button">Achievements</button>
+        <button class="shop-tab" id="locationsTab" type="button">Locations</button>
       </div>
       
       <div class="shop-content active" id="shopContent">
@@ -656,6 +679,10 @@
       
       <div class="shop-content" id="achievementsContent">
         <div class="achievements-list" id="achievementsList"></div>
+      </div>
+      
+      <div class="shop-content" id="locationsContent">
+        <div class="locations-list" id="locationsList"></div>
       </div>
     </div>
   </div>
@@ -709,6 +736,8 @@
       coinRemainder: 'coinRemainder',
       achievements: 'achievements',
       superDicers: 'superDicers',
+      cursedUntil: 'cursedUntil',
+      hasBackground: 'hasBackground',
     };
 
     function readInt(key, fallback) {
@@ -726,6 +755,8 @@
     let coins = readInt(STORAGE_KEYS.coins, 0);
     let coinRemainder = readNumber(STORAGE_KEYS.coinRemainder, 0);
     let superDicers = readInt(STORAGE_KEYS.superDicers, 0);
+    let cursedUntil = readInt(STORAGE_KEYS.cursedUntil, 0);
+    let hasBackground = readInt(STORAGE_KEYS.hasBackground, 0);
 
     const tracks = [
       { id: '67', name: '67', src: '67.mp3', cost: 67, playable: true },
@@ -733,6 +764,7 @@
       { id: 'bronzeDice', name: 'Bronze Dice', src: '', cost: 150, playable: false, pet: false, multiplier: 1.5 },
       { id: 'silverDice', name: 'Silver Dice', src: '', cost: 300, playable: false, pet: false, multiplier: 2 },
       { id: 'autoRoll', name: 'Auto Dice Roll', src: '', cost: 1000, playable: false, pet: false, autoRoll: true },
+      { id: 'superDice', name: 'Super Dice', src: '', cost: 3, superDiceCost: 3, multiplier: 5 },
     ];
 
     let ownedTracks = (() => {
@@ -758,6 +790,7 @@
     const achievementDefs = [
       { id: 'firstRoll', name: 'Where All Started..', desc: 'Roll the dice for the first time', icon: '🎲' },
       { id: 'niceEarnings', name: 'Nice Earnings', desc: 'Get 1000 dices', icon: '🟩' },
+      { id: 'firstRebirth', name: 'Born Again', desc: 'Complete your first rebirth', icon: '🔄' },
     ];
 
     let selectedTrack = localStorage.getItem(STORAGE_KEYS.selectedTrack) || '';
@@ -793,6 +826,8 @@
       shopTab: document.getElementById('shopTab'),
       achievementsTab: document.getElementById('achievementsTab'),
       achievementsList: document.getElementById('achievementsList'),
+      locationsTab: document.getElementById('locationsTab'),
+      locationsList: document.getElementById('locationsList'),
       buffIcons: document.getElementById('buffIcons'),
       luckBuffIcon: document.getElementById('luckBuffIcon'),
       pointsBuffIcon: document.getElementById('pointsBuffIcon'),
@@ -820,12 +855,49 @@
     }
 
     function getCoinMultiplier() {
-      if (isOwned('silverDice')) return 2;
-      if (isOwned('bronzeDice')) return 1.5;
-      return 1;
+      let multiplier = 1;
+      if (isOwned('silverDice')) multiplier = 2;
+      if (isOwned('bronzeDice')) multiplier = 1.5;
+      if (isOwned('superDice')) multiplier = 5;
+      return multiplier;
+    }
+
+    function visitCultAltar() {
+      visitCultAltar();
+    }
+
+    function buySuperDice() {
+      buyTrack('superDice');
+    }
+
+    function equipSuperDice() {
+      if (!isOwned('superDice')) {
+        alert('You need to buy Super Dice first!');
+        return;
+      }
+      
+      // Equip Super Dice and unequip other dice
+      const newOwnedTracks = ownedTracks.filter(id => 
+        id !== 'bronzeDice' && 
+        id !== 'silverDice'
+      );
+      newOwnedTracks.push('superDice');
+      
+      ownedTracks = newOwnedTracks;
+      saveOwnedTracks();
+      
+      // Update UI
+      renderShop();
+      updateDiceAppearance();
+      updateAutoRollStatus();
+      
+      alert('🎲 Super Dice equipped! 5x multiplier activated!');
     }
 
     function awardCoins(baseCoins) {
+      // Don't award coins if cursed
+      if (isCursed()) return;
+      
       const earned = baseCoins * getCoinMultiplier();
       const total = coinRemainder + earned;
       const add = Math.floor(total + 1e-9);
@@ -922,15 +994,49 @@
       localStorage.setItem(STORAGE_KEYS.achievements, JSON.stringify(achievements));
     }
 
+    function isCursed() {
+      const now = Date.now();
+      return cursedUntil > now;
+    }
+
+    function setCursedUntil(timestamp) {
+      cursedUntil = timestamp;
+      localStorage.setItem(STORAGE_KEYS.cursedUntil, String(cursedUntil));
+    }
+
+    function setHasBackground(value) {
+      hasBackground = value;
+      localStorage.setItem(STORAGE_KEYS.hasBackground, String(hasBackground));
+      if (value) {
+        document.body.style.backgroundImage = 'url(map1.png)';
+        document.body.style.backgroundSize = 'cover';
+        document.body.style.backgroundPosition = 'center';
+        document.body.style.backgroundRepeat = 'no-repeat';
+      } else {
+        document.body.style.backgroundImage = '';
+      }
+    }
+
     function buyTrack(id) {
       const track = tracks.find((t) => t.id === id);
       if (!track) return;
       if (isOwned(id)) return;
-      if (coins < track.cost) {
-        alert('Not enough coins');
-        return;
+      
+      // Handle Super Dice purchase
+      if (track.superDiceCost) {
+        if (superDicers < track.superDiceCost) {
+          alert(`Not enough Super Dicers! You need ${track.superDiceCost} Super Dicers.`);
+          return;
+        }
+        setSuperDicers(superDicers - track.superDiceCost);
+      } else {
+        if (coins < track.cost) {
+          alert('Not enough coins');
+          return;
+        }
+        setCoins(coins - track.cost);
       }
-      setCoins(coins - track.cost);
+      
       ownedTracks = [...ownedTracks, id];
       saveOwnedTracks();
       if (track.playable) setSelectedTrack(id);
@@ -948,8 +1054,10 @@
     function updateDiceAppearance() {
       const hasBronzeDice = isOwned('bronzeDice');
       const hasSilverDice = isOwned('silverDice');
+      const hasSuperDice = isOwned('superDice');
       els.die.classList.toggle('bronze', hasBronzeDice);
       els.die.classList.toggle('silver', hasSilverDice);
+      els.die.classList.toggle('super', hasSuperDice);
     }
 
     function startAutoRoll() {
@@ -1010,6 +1118,11 @@
       setCoins(coins - cost);
       setSuperDicers(superDicers + 1);
       
+      // Unlock first rebirth achievement
+      if (!achievements.includes('firstRebirth')) {
+        unlockAchievement('firstRebirth');
+      }
+      
       // Play rebirth sound
       try {
         const rebirthAudio = new Audio('minecraft_click.mp3');
@@ -1035,6 +1148,22 @@
 
     // Initialize displays
     els.superDicerAmount.textContent = String(superDicers);
+    
+    // Initialize background if already unlocked
+    if (hasBackground) {
+      document.body.style.backgroundImage = 'url(map1.png)';
+      document.body.style.backgroundSize = 'cover';
+      document.body.style.backgroundPosition = 'center';
+      document.body.style.backgroundRepeat = 'no-repeat';
+    }
+
+    els.locationsTab.addEventListener('click', () => {
+      els.shopTab.classList.remove('active');
+      els.locationsTab.classList.add('active');
+      els.shopContent.style.display = 'none';
+      els.locationsContent.style.display = 'block';
+      renderLocations();
+    });
 
     function playPet() {
       if (!isOwned('lilgod')) return;
@@ -1112,6 +1241,9 @@
     function renderShop() {
       els.shopList.innerHTML = '';
       for (const track of tracks) {
+        // Skip Super Dice - only available in Locations tab
+        if (track.id === 'superDice') continue;
+        
         const row = document.createElement('div');
         row.className = 'shop-item';
         if (track.id === 'bronzeDice') row.classList.add('bronze-dice');
@@ -1197,21 +1329,74 @@
       }
     }
 
+    function renderLocations() {
+      els.locationsList.innerHTML = '';
+      
+      // Cult Altar
+      const cultAltar = document.createElement('div');
+      cultAltar.className = 'shop-item';
+      cultAltar.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <strong>Cult Altar</strong>
+            <div style="font-size: 12px; color: rgba(31, 36, 48, 0.7); margin-top: 4px;">
+              Come to the cult altar for permanent background and a chance of power... or curse.
+            </div>
+          </div>
+          <button class="btn" onclick="visitCultAltar()">Come to Altar (5 Super Dicers)</button>
+        </div>
+      `;
+      
+      // Super Dice
+      const superDiceItem = document.createElement('div');
+      superDiceItem.className = 'shop-item';
+      superDiceItem.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <strong>Super Dice</strong>
+            <div style="font-size: 12px; color: rgba(31, 36, 48, 0.7); margin-top: 4px;">
+              5x coin multiplier for maximum power!
+            </div>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn" onclick="buySuperDice()">Buy (3 Super Dicers)</button>
+            <button class="btn" onclick="equipSuperDice()" style="background: rgba(138, 43, 226, 0.3);">Equip</button>
+          </div>
+        </div>
+      `;
+      
+      els.locationsList.appendChild(cultAltar);
+      els.locationsList.appendChild(superDiceItem);
+    }
+
     function switchTab(tabName) {
       const shopContent = document.getElementById('shopContent');
       const achievementsContent = document.getElementById('achievementsContent');
+      const locationsContent = document.getElementById('locationsContent');
 
       if (tabName === 'shop') {
         els.shopTab.classList.add('active');
         els.achievementsTab.classList.remove('active');
+        els.locationsTab.classList.remove('active');
         shopContent.classList.add('active');
         achievementsContent.classList.remove('active');
-      } else {
+        locationsContent.classList.remove('active');
+      } else if (tabName === 'achievements') {
         els.shopTab.classList.remove('active');
         els.achievementsTab.classList.add('active');
+        els.locationsTab.classList.remove('active');
         shopContent.classList.remove('active');
         achievementsContent.classList.add('active');
+        locationsContent.classList.remove('active');
         renderAchievements();
+      } else if (tabName === 'locations') {
+        els.shopTab.classList.remove('active');
+        els.achievementsTab.classList.remove('active');
+        els.locationsTab.classList.add('active');
+        shopContent.classList.remove('active');
+        achievementsContent.classList.remove('active');
+        locationsContent.classList.add('active');
+        renderLocations();
       }
     }
 
@@ -1358,6 +1543,7 @@
 
     els.shopTab.addEventListener('click', () => switchTab('shop'));
     els.achievementsTab.addEventListener('click', () => switchTab('achievements'));
+    els.locationsTab.addEventListener('click', () => switchTab('locations'));
 
     els.devUnlock.addEventListener('click', handleDevUnlock);
     els.devPassword.addEventListener('keydown', (e) => {
