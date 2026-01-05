@@ -774,6 +774,7 @@
     const tracks = [
       { id: '67', name: '67', src: '67.mp3', cost: 67, playable: true },
       { id: 'lilgod', name: 'lil god', src: 'lil-god.mp3', cost: 676, playable: false, pet: true },
+      { id: 'tuffthing', name: 'tuff thing', src: 'tuff-thing.mp3', cost: 500, playable: true },
       { id: 'bronzeDice', name: 'Bronze Dice', src: '', cost: 150, playable: false, pet: false, multiplier: 1.5, requires: [] },
       { id: 'silverDice', name: 'Silver Dice', src: '', cost: 300, playable: false, pet: false, multiplier: 2, requires: ['bronzeDice'] },
       { id: 'autoRoll', name: 'Auto Dice Roll', src: '', cost: 1000, playable: false, pet: false, autoRoll: true, requires: ['silverDice'] },
@@ -1386,64 +1387,37 @@
     function renderShop() {
       els.shopList.innerHTML = '';
       for (const track of tracks) {
-        // Skip Super Dice - only available in Locations tab
-        if (track.id === 'superDice') continue;
+        // Only show music tracks in Shop tab (skip dice items and Super Dice)
+        if (!track.playable || track.id === 'superDice') continue;
         
         const row = document.createElement('div');
         row.className = 'shop-item';
-        if (track.id === 'bronzeDice') row.classList.add('bronze-dice');
-        if (track.id === 'silverDice') row.classList.add('silver-dice');
 
         const left = document.createElement('div');
         const title = document.createElement('strong');
         title.textContent = track.name;
         const meta = document.createElement('div');
         meta.className = 'shop-meta';
-        if (track.id === 'bronzeDice') {
-          meta.innerHTML = `1.5x coins • ${track.cost} <img src="dice-coin.png" alt="Coin" style="width:16px;height:16px;vertical-align:-3px;" />`;
-        } else if (track.id === 'silverDice') {
-          meta.innerHTML = `2x coins • ${track.cost} <img src="dice-coin.png" alt="Coin" style="width:16px;height:16px;vertical-align:-3px;" /> • Requires Bronze Dice`;
-        } else if (track.id === 'autoRoll') {
-          meta.innerHTML = `Automatic rolling every 10 seconds • ${track.cost} <img src="dice-coin.png" alt="Coin" style="width:16px;height:16px;vertical-align:-3px;" /> • Requires Silver Dice`;
-        } else {
-          meta.innerHTML = `${track.cost} <img src="dice-coin.png" alt="Coin" style="width:16px;height:16px;vertical-align:-3px;" />`;
-        }
+        meta.innerHTML = `${track.cost} <img src="dice-coin.png" alt="Coin" style="width:16px;height:16px;vertical-align:-3px;" />`;
         left.appendChild(title);
         left.appendChild(meta);
 
         const right = document.createElement('div');
         if (isOwned(track.id)) {
-          if (track.playable) {
-            const radio = document.createElement('input');
-            radio.type = 'radio';
-            radio.name = 'trackPick';
-            radio.value = track.id;
-            radio.checked = selectedTrack === track.id;
-            radio.addEventListener('change', () => setSelectedTrack(track.id));
-            right.appendChild(radio);
-          } else {
-            const owned = document.createElement('div');
-            owned.style.fontWeight = '900';
-            owned.style.color = 'rgba(31, 36, 48, 0.75)';
-            owned.textContent = 'Owned';
-            right.appendChild(owned);
-          }
+          const radio = document.createElement('input');
+          radio.type = 'radio';
+          radio.name = 'trackPick';
+          radio.value = track.id;
+          radio.checked = selectedTrack === track.id;
+          radio.addEventListener('change', () => setSelectedTrack(track.id));
+          right.appendChild(radio);
         } else {
           const buy = document.createElement('button');
           buy.type = 'button';
           buy.className = 'btn';
           buy.textContent = 'Buy';
           
-          // Disable button if requirements aren't met
-          if (!canPurchase(track)) {
-            buy.disabled = true;
-            const missing = track.requires.find(req => !isOwned(req));
-            const missingTrack = tracks.find(t => t.id === missing);
-            buy.textContent = `Requires ${missingTrack.name}`;
-          } else if (track.superDiceCost && superDicers < track.superDiceCost) {
-            buy.disabled = true;
-            buy.textContent = `Not enough Super Dicers`;
-          } else if (!track.superDiceCost && coins < track.cost) {
+          if (coins < track.cost) {
             buy.disabled = true;
             buy.textContent = 'Not enough coins';
           }
@@ -1493,6 +1467,67 @@
 
     function renderLocations() {
       els.locationsList.innerHTML = '';
+      
+      // Add dice progression items
+      for (const track of tracks) {
+        // Only show dice items (not playable, not pet, not superDice)
+        if (!track.playable && !track.pet && track.id !== 'superDice') {
+          const row = document.createElement('div');
+          row.className = 'shop-item';
+          if (track.id === 'bronzeDice') row.classList.add('bronze-dice');
+          if (track.id === 'silverDice') row.classList.add('silver-dice');
+
+          const left = document.createElement('div');
+          const title = document.createElement('strong');
+          title.textContent = track.name;
+          const meta = document.createElement('div');
+          meta.className = 'shop-meta';
+          if (track.id === 'bronzeDice') {
+            meta.innerHTML = `1.5x coins • ${track.cost} <img src="dice-coin.png" alt="Coin" style="width:16px;height:16px;vertical-align:-3px;" />`;
+          } else if (track.id === 'silverDice') {
+            meta.innerHTML = `2x coins • ${track.cost} <img src="dice-coin.png" alt="Coin" style="width:16px;height:16px;vertical-align:-3px;" /> • Requires Bronze Dice`;
+          } else if (track.id === 'autoRoll') {
+            meta.innerHTML = `Automatic rolling every 10 seconds • ${track.cost} <img src="dice-coin.png" alt="Coin" style="width:16px;height:16px;vertical-align:-3px;" /> • Requires Silver Dice`;
+          }
+          left.appendChild(title);
+          left.appendChild(meta);
+
+          const right = document.createElement('div');
+          if (isOwned(track.id)) {
+            const owned = document.createElement('div');
+            owned.style.fontWeight = '900';
+            owned.style.color = 'rgba(31, 36, 48, 0.75)';
+            owned.textContent = 'Owned';
+            right.appendChild(owned);
+          } else {
+            const buy = document.createElement('button');
+            buy.type = 'button';
+            buy.className = 'btn';
+            buy.textContent = 'Buy';
+            
+            // Disable button if requirements aren't met
+            if (!canPurchase(track)) {
+              buy.disabled = true;
+              const missing = track.requires.find(req => !isOwned(req));
+              const missingTrack = tracks.find(t => t.id === missing);
+              buy.textContent = `Requires ${missingTrack.name}`;
+            } else if (track.superDiceCost && superDicers < track.superDiceCost) {
+              buy.disabled = true;
+              buy.textContent = `Not enough Super Dicers`;
+            } else if (!track.superDiceCost && coins < track.cost) {
+              buy.disabled = true;
+              buy.textContent = 'Not enough coins';
+            }
+            
+            buy.addEventListener('click', () => buyTrack(track.id));
+            right.appendChild(buy);
+          }
+
+          row.appendChild(left);
+          row.appendChild(right);
+          els.locationsList.appendChild(row);
+        }
+      }
       
       // Cult Altar
       const cultAltar = document.createElement('div');
