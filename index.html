@@ -1183,10 +1183,12 @@
         setCoins(coins - track.cost);
       }
       
-      ownedTracks = [...ownedTracks, id];
+      // Only add the specific track being purchased
+      ownedTracks = [...ownedTracks.filter(trackId => trackId !== id), id];
       saveOwnedTracks();
       if (track.playable) setSelectedTrack(id);
       renderShop();
+      renderLocations();
       updatePetVisibility();
       updateDiceAppearance();
       updateAutoRollStatus();
