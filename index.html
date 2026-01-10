@@ -108,6 +108,10 @@
     .shop-btn:hover { transform: translateY(-1px); box-shadow: 0 14px 28px rgba(102, 126, 234, 0.42); }
     .shop-btn:active { transform: translateY(0px); }
 
+    #questBtn {
+      left: 90px;
+    }
+
     .modal {
       position: fixed;
       inset: 0;
@@ -270,6 +274,70 @@
     .achievement-desc {
       font-size: 13px;
       color: rgba(31, 36, 48, 0.7);
+    }
+
+    .quest-list {
+      display: grid;
+      gap: 10px;
+      margin: 8px 0 14px;
+    }
+
+    .quest {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      border-radius: 14px;
+      background: rgba(31, 36, 48, 0.05);
+      border: 1px solid rgba(31, 36, 48, 0.08);
+    }
+
+    .quest.completed {
+      background: linear-gradient(135deg, rgba(34, 197, 94, 0.18), rgba(16, 185, 129, 0.18));
+      border: 1px solid rgba(34, 197, 94, 0.45);
+    }
+
+    .quest-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      background: rgba(31, 36, 48, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+
+    .quest.completed .quest-icon {
+      background: linear-gradient(135deg, var(--bg1), var(--bg2));
+      color: white;
+    }
+
+    .quest-info {
+      flex: 1;
+    }
+
+    .quest-name {
+      font-weight: 700;
+      color: rgba(31, 36, 48, 0.9);
+      margin-bottom: 4px;
+    }
+
+    .quest-desc {
+      font-size: 13px;
+      color: rgba(31, 36, 48, 0.7);
+      margin-bottom: 4px;
+    }
+
+    .quest-progress {
+      font-size: 12px;
+      color: rgba(31, 36, 48, 0.6);
+    }
+
+    .quest-reward {
+      font-size: 12px;
+      font-weight: 600;
+      color: rgba(31, 36, 48, 0.8);
     }
 
     .dev-access {
@@ -654,6 +722,7 @@
   </div>
 
   <button class="shop-btn" id="shopBtn" type="button">Shop</button>
+  <button class="shop-btn" id="questBtn" type="button">Quests</button>
   <div class="potion-icon" id="potionIcon" aria-label="Luck Potion Active" style="display: none;">
     <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
       <img src="luck-potion.png" alt="Luck Potion" style="width: 40px; height: 40px; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.2));" />
@@ -695,6 +764,15 @@
       <div class="shop-content" id="potionsContent">
         <div class="potions-list" id="potionsList"></div>
       </div>
+    </div>
+  </div>
+
+  <div class="modal" id="questModal" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-label="Quests">
+      <button class="modal-close" id="questClose" type="button" aria-label="Close">×</button>
+      <div class="modal-title">Quests</div>
+      
+      <div class="quest-list" id="questList"></div>
     </div>
   </div>
 
@@ -750,6 +828,9 @@
       cursedUntil: 'cursedUntil',
       hasBackground: 'hasBackground',
       luckPotionUntil: 'luckPotionUntil',
+      quests: 'quests',
+      questStartTime: 'questStartTime',
+      isFirstVisit: 'isFirstVisit',
     };
 
     function readInt(key, fallback) {
@@ -781,6 +862,32 @@
       { id: 'superDice', name: 'Super Dice', src: '', cost: 3, superDiceCost: 3, multiplier: 5, requires: ['silverDice'] },
     ];
 
+    const quests = [
+      {
+        id: 'play15Minutes',
+        name: 'Very Busy Man',
+        desc: 'Play the game for 15 minutes',
+        icon: '⏱️',
+        reward: 150,
+        type: 'time',
+        duration: 15 * 60 * 1000, // 15 minutes in milliseconds
+        completed: false,
+        accepted: false
+      }
+    ];
+
+    let questData = (() => {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEYS.quests);
+        const parsed = raw ? JSON.parse(raw) : {};
+        return parsed || {};
+      } catch {
+        return {};
+      }
+    })();
+
+    let questStartTime = readInt(STORAGE_KEYS.questStartTime, 0);
+
     let ownedTracks = (() => {
       try {
         const raw = localStorage.getItem(STORAGE_KEYS.ownedTracks);
@@ -805,6 +912,9 @@
       { id: 'firstRoll', name: 'Where All Started..', desc: 'Roll the dice for the first time', icon: '🎲' },
       { id: 'niceEarnings', name: 'Nice Earnings', desc: 'Get 1000 dices', icon: '🟩' },
       { id: 'firstRebirth', name: 'Born Again', desc: 'Complete your first rebirth', icon: '🔄' },
+      { id: 'veryBusyMan', name: 'Very Busy Man', desc: 'Complete the 15 minute play quest', icon: '⏱️' },
+      { id: 'gamblersChance', name: 'Gamblers Chance', desc: 'Roll N/A (1 in 100,000 chance)', icon: '🎰' },
+      { id: 'welcomeBack', name: 'Welcome Back..', desc: 'Return to the game after closing', icon: 'soldier.png', isImage: true },
     ];
 
     let selectedTrack = localStorage.getItem(STORAGE_KEYS.selectedTrack) || '';
@@ -850,6 +960,10 @@
       buffIcons: document.getElementById('buffIcons'),
       luckBuffIcon: document.getElementById('luckBuffIcon'),
       pointsBuffIcon: document.getElementById('pointsBuffIcon'),
+      questBtn: document.getElementById('questBtn'),
+      questModal: document.getElementById('questModal'),
+      questClose: document.getElementById('questClose'),
+      questList: document.getElementById('questList'),
     };
 
     function setCoins(next) {
@@ -1045,6 +1159,76 @@
 
     function saveAchievements() {
       localStorage.setItem(STORAGE_KEYS.achievements, JSON.stringify(achievements));
+    }
+
+    function saveQuestData() {
+      localStorage.setItem(STORAGE_KEYS.quests, JSON.stringify(questData));
+    }
+
+    function setQuestStartTime(timestamp) {
+      questStartTime = timestamp;
+      localStorage.setItem(STORAGE_KEYS.questStartTime, String(questStartTime));
+    }
+
+    function getQuestStatus(questId) {
+      return questData[questId] || { completed: false, accepted: false };
+    }
+
+    function setQuestStatus(questId, status) {
+      questData[questId] = { ...getQuestStatus(questId), ...status };
+      saveQuestData();
+    }
+
+    function acceptQuest(questId) {
+      const quest = quests.find(q => q.id === questId);
+      if (!quest) return;
+      
+      const status = getQuestStatus(questId);
+      if (status.completed || status.accepted) return;
+      
+      setQuestStatus(questId, { accepted: true });
+      setQuestStartTime(Date.now());
+      renderQuests();
+      
+      alert(`Quest accepted: ${quest.name}!\n\n${quest.desc}\n\nReward: ${quest.reward} coins`);
+    }
+
+    function completeQuest(questId) {
+      const quest = quests.find(q => q.id === questId);
+      if (!quest) return;
+      
+      const status = getQuestStatus(questId);
+      if (status.completed) return;
+      
+      setQuestStatus(questId, { completed: true });
+      setCoins(coins + quest.reward);
+      
+      // Add achievement for completing the quest
+      if (questId === 'play15Minutes') {
+        unlockAchievement('veryBusyMan');
+      }
+      
+      renderQuests();
+      
+      alert(`🎉 Quest completed: ${quest.name}!\n\nYou earned ${quest.reward} coins!`);
+    }
+
+    function checkQuestProgress() {
+      const now = Date.now();
+      
+      for (const quest of quests) {
+        const status = getQuestStatus(quest.id);
+        
+        if (!status.accepted || status.completed) continue;
+        
+        if (quest.type === 'time' && questStartTime > 0) {
+          const elapsedTime = now - questStartTime;
+          
+          if (elapsedTime >= quest.duration) {
+            completeQuest(quest.id);
+          }
+        }
+      }
     }
 
     function isCursed() {
@@ -1386,6 +1570,17 @@
       els.shopModal.setAttribute('aria-hidden', 'true');
     }
 
+    function openQuests() {
+      els.questModal.classList.add('open');
+      els.questModal.setAttribute('aria-hidden', 'false');
+      renderQuests();
+    }
+
+    function closeQuests() {
+      els.questModal.classList.remove('open');
+      els.questModal.setAttribute('aria-hidden', 'true');
+    }
+
     function renderShop() {
       els.shopList.innerHTML = '';
       for (const track of tracks) {
@@ -1445,7 +1640,19 @@
 
         const icon = document.createElement('div');
         icon.className = 'achievement-icon';
-        icon.textContent = achievement.icon;
+        
+        if (achievement.isImage) {
+          const img = document.createElement('img');
+          img.src = achievement.icon;
+          img.alt = achievement.name;
+          img.style.width = '100%';
+          img.style.height = '100%';
+          img.style.objectFit = 'cover';
+          img.style.borderRadius = '8px';
+          icon.appendChild(img);
+        } else {
+          icon.textContent = achievement.icon;
+        }
 
         const info = document.createElement('div');
         info.className = 'achievement-info';
@@ -1464,6 +1671,88 @@
         row.appendChild(icon);
         row.appendChild(info);
         els.achievementsList.appendChild(row);
+      }
+    }
+
+    function renderQuests() {
+      els.questList.innerHTML = '';
+      
+      for (const quest of quests) {
+        const status = getQuestStatus(quest.id);
+        const row = document.createElement('div');
+        row.className = 'quest';
+        if (status.completed) row.classList.add('completed');
+
+        const icon = document.createElement('div');
+        icon.className = 'quest-icon';
+        icon.textContent = quest.icon;
+
+        const info = document.createElement('div');
+        info.className = 'quest-info';
+
+        const name = document.createElement('div');
+        name.className = 'quest-name';
+        name.textContent = quest.name;
+
+        const desc = document.createElement('div');
+        desc.className = 'quest-desc';
+        desc.textContent = quest.desc;
+
+        const progress = document.createElement('div');
+        progress.className = 'quest-progress';
+        
+        if (status.completed) {
+          progress.textContent = 'Completed ✓';
+        } else if (status.accepted) {
+          if (quest.type === 'time' && questStartTime > 0) {
+            const now = Date.now();
+            const elapsed = now - questStartTime;
+            const remaining = Math.max(0, quest.duration - elapsed);
+            const minutes = Math.floor(remaining / (60 * 1000));
+            const seconds = Math.floor((remaining % (60 * 1000)) / 1000);
+            progress.textContent = `Time remaining: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+          } else {
+            progress.textContent = 'In progress...';
+          }
+        } else {
+          progress.textContent = 'Not started';
+        }
+
+        const reward = document.createElement('div');
+        reward.className = 'quest-reward';
+        reward.textContent = `Reward: ${quest.reward} coins`;
+
+        info.appendChild(name);
+        info.appendChild(desc);
+        info.appendChild(progress);
+        info.appendChild(reward);
+
+        const right = document.createElement('div');
+        if (status.completed) {
+          const completed = document.createElement('div');
+          completed.style.fontWeight = '900';
+          completed.style.color = 'rgba(34, 197, 94, 0.8)';
+          completed.textContent = '✓ Completed';
+          right.appendChild(completed);
+        } else if (status.accepted) {
+          const inProgress = document.createElement('div');
+          inProgress.style.fontWeight = '700';
+          inProgress.style.color = 'rgba(31, 36, 48, 0.6)';
+          inProgress.textContent = 'In Progress';
+          right.appendChild(inProgress);
+        } else {
+          const accept = document.createElement('button');
+          accept.type = 'button';
+          accept.className = 'btn';
+          accept.textContent = 'Accept';
+          accept.addEventListener('click', () => acceptQuest(quest.id));
+          right.appendChild(accept);
+        }
+
+        row.appendChild(icon);
+        row.appendChild(info);
+        row.appendChild(right);
+        els.questList.appendChild(row);
       }
     }
 
@@ -1705,7 +1994,20 @@
     }
 
     function biasedRollD6() {
-      const baseChance = 1 / 6;
+      // First check for the ultra-rare N/A roll (1 in 100,000 chance)
+      const naChance = 1 / 100000;
+      const r = Math.random();
+      if (r < naChance) {
+        return 'N/A';
+      }
+      
+      // Adjust remaining probability for normal dice rolls
+      const adjustedR = (r - naChance) / (1 - naChance);
+      
+      // Base chance: 5% for 6, 95% distributed equally among 1-5 (19% each)
+      let sixChance = 0.05; // 5% base chance for 6
+      
+      // Apply luck multiplier to the 6 chance
       let totalLuckMultiplier = luckMultiplier;
       
       // Add luck potion bonus (2x chance for 6)
@@ -1713,10 +2015,18 @@
         totalLuckMultiplier *= 2;
       }
       
-      const sixChance = Math.min(0.9, baseChance * totalLuckMultiplier);
-      const r = Math.random();
-      if (r < sixChance) return 6;
-      return randomIntInclusive(1, 5);
+      sixChance = Math.min(0.9, sixChance * totalLuckMultiplier);
+      
+      if (adjustedR < sixChance) return 6;
+      
+      // For numbers 1-5, distribute the remaining probability equally
+      // Each gets (1 - sixChance) / 5 chance
+      const remainingChance = 1 - sixChance;
+      
+      const adjustedR2 = (adjustedR - sixChance) / remainingChance; // Normalize to 0-1 range for 1-5
+      const result = Math.floor(adjustedR2 * 5) + 1;
+      
+      return Math.min(5, Math.max(1, result));
     }
 
     let isRolling = false;
@@ -1754,21 +2064,35 @@
           els.result.textContent = `Googol roll: ${n}`;
         } else {
           const v = biasedRollD6();
-          renderPipDie(v);
-          els.result.textContent = `You rolled: ${v}`;
-          awardCoins(1 * pointsMultiplier);
-
-          // Unlock first roll achievement
-          if (!achievements.includes('firstRoll')) {
-            unlockAchievement('firstRoll');
-          }
-
-          if (v === 6) {
-            applyRollSixBuff();
+          
+          if (v === 'N/A') {
+            showBigNumber('N/A');
+            els.result.textContent = 'You rolled: N/A';
+            
+            // Unlock the ultra-rare achievement
+            unlockAchievement('gamblersChance');
+            
+            // Give a massive reward for this incredible luck
+            awardCoins(10000 * pointsMultiplier);
+            
+            alert('🎰 JACKPOT! You rolled N/A! 🎰\n\nYou unlocked the "Gamblers Chance" achievement!\n\n+10,000 coins!');
           } else {
-            rollsSinceSix += 1;
-            if (rollsSinceSix >= 3) {
-              resetRollSixBuffs();
+            renderPipDie(v);
+            els.result.textContent = `You rolled: ${v}`;
+            awardCoins(1 * pointsMultiplier);
+
+            // Unlock first roll achievement
+            if (!achievements.includes('firstRoll')) {
+              unlockAchievement('firstRoll');
+            }
+
+            if (v === 6) {
+              applyRollSixBuff();
+            } else {
+              rollsSinceSix += 1;
+              if (rollsSinceSix >= 3) {
+                resetRollSixBuffs();
+              }
             }
           }
         }
@@ -1817,18 +2141,42 @@
     });
 
     els.shopBtn.addEventListener('click', openShop);
+    els.questBtn.addEventListener('click', openQuests);
     els.shopClose.addEventListener('click', closeShop);
+    els.questClose.addEventListener('click', closeQuests);
     els.shopModal.addEventListener('click', (e) => {
       if (e.target === els.shopModal) closeShop();
     });
+    els.questModal.addEventListener('click', (e) => {
+      if (e.target === els.questModal) closeQuests();
+    });
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') closeShop();
+      if (e.key === 'Escape') {
+        closeShop();
+        closeQuests();
+      }
     });
     els.shopPlay.addEventListener('click', playSelected);
     els.shopStop.addEventListener('click', stopMusic);
 
     // Initialize potion icon visibility
     updatePotionIcon();
+    
+    // Check quest progress every second
+    setInterval(checkQuestProgress, 1000);
+    
+    // Check for welcome back achievement
+    const isFirstVisit = localStorage.getItem(STORAGE_KEYS.isFirstVisit);
+    if (isFirstVisit === null) {
+      // First time visiting - set the flag
+      localStorage.setItem(STORAGE_KEYS.isFirstVisit, 'false');
+    } else if (isFirstVisit === 'false') {
+      // Player has returned - unlock welcome back achievement
+      if (!achievements.includes('welcomeBack')) {
+        unlockAchievement('welcomeBack');
+      }
+      localStorage.setItem(STORAGE_KEYS.isFirstVisit, 'true');
+    }
   </script>
 </body>
 </html>
