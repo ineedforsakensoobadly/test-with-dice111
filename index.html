@@ -594,6 +594,26 @@
       display: flex !important; 
     }
 
+    .confetti {
+      position: fixed;
+      width: 10px;
+      height: 10px;
+      background: #f0f;
+      position: absolute;
+      animation: confetti-fall 3s linear forwards;
+    }
+
+    @keyframes confetti-fall {
+      0% {
+        transform: translateY(-100vh) rotate(0deg);
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(100vh) rotate(720deg);
+        opacity: 0;
+      }
+    }
+
     .dev-btn {
       border: 1px solid #00ff00 !important;
       background: rgba(0, 255, 0, 0.1) !important;
@@ -719,6 +739,7 @@
     <button class="dev-btn" id="devMaxCoins" type="button">Set coins to 99,999,999,999</button>
     <button class="dev-btn" id="devResetCoins" type="button">Reset points to 0</button>
     <button class="dev-btn" id="devResetDice" type="button">Reset Progress</button>
+    <button class="dev-btn" id="devForceNA" type="button">Force N/A on next roll</button>
   </div>
 
   <button class="shop-btn" id="shopBtn" type="button">Shop</button>
@@ -944,6 +965,7 @@
       devMaxCoins: document.getElementById('devMaxCoins'),
       devResetCoins: document.getElementById('devResetCoins'),
       devResetDice: document.getElementById('devResetDice'),
+      devForceNA: document.getElementById('devForceNA'),
       devPassword: document.getElementById('devPassword'),
       devUnlock: document.getElementById('devUnlock'),
       autoRollToggle: document.getElementById('autoRollToggle'),
@@ -1471,9 +1493,37 @@
       alert('🎉 Rebirth successful! You received 1 Super Dicer!');
     }
 
+    function createConfetti() {
+      const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff', '#ffa500', '#800080'];
+      const confettiCount = 100;
+      
+      for (let i = 0; i < confettiCount; i++) {
+        setTimeout(() => {
+          const confetti = document.createElement('div');
+          confetti.className = 'confetti';
+          confetti.style.left = Math.random() * 100 + '%';
+          confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+          confetti.style.animationDelay = Math.random() * 0.5 + 's';
+          confetti.style.animationDuration = (Math.random() * 2 + 2) + 's';
+          document.body.appendChild(confetti);
+          
+          // Remove confetti after animation
+          setTimeout(() => {
+            if (confetti.parentNode) {
+              confetti.parentNode.removeChild(confetti);
+            }
+          }, 4000);
+        }, i * 30);
+      }
+    }
+
     els.devResetDice.addEventListener('click', resetDice);
     els.devResetCoins.addEventListener('click', resetCoins);
     els.devMaxCoins.addEventListener('click', grantMaxCoins);
+    els.devForceNA.addEventListener('click', () => {
+      forceNextRollNA = true;
+      alert('N/A will be forced on the next roll!');
+    });
     els.devUnlock.addEventListener('click', handleDevUnlock);
     els.autoRollCheckbox.addEventListener('change', handleAutoRollToggle);
     els.rebirthBtn.addEventListener('click', rebirth);
@@ -1595,19 +1645,29 @@
         title.textContent = track.name;
         const meta = document.createElement('div');
         meta.className = 'shop-meta';
+        
         meta.innerHTML = `${track.cost} <img src="dice-coin.png" alt="Coin" style="width:16px;height:16px;vertical-align:-3px;" />`;
+        
         left.appendChild(title);
         left.appendChild(meta);
 
         const right = document.createElement('div');
         if (isOwned(track.id)) {
-          const radio = document.createElement('input');
-          radio.type = 'radio';
-          radio.name = 'trackPick';
-          radio.value = track.id;
-          radio.checked = selectedTrack === track.id;
-          radio.addEventListener('change', () => setSelectedTrack(track.id));
-          right.appendChild(radio);
+          if (track.playable) {
+            const radio = document.createElement('input');
+            radio.type = 'radio';
+            radio.name = 'trackPick';
+            radio.value = track.id;
+            radio.checked = selectedTrack === track.id;
+            radio.addEventListener('change', () => setSelectedTrack(track.id));
+            right.appendChild(radio);
+          } else {
+            const owned = document.createElement('div');
+            owned.style.fontWeight = '900';
+            owned.style.color = 'rgba(31, 36, 48, 0.75)';
+            owned.textContent = 'Owned';
+            right.appendChild(owned);
+          }
         } else {
           const buy = document.createElement('button');
           buy.type = 'button';
@@ -1994,6 +2054,12 @@
     }
 
     function biasedRollD6() {
+      // Check if dev panel forced N/A
+      if (forceNextRollNA) {
+        forceNextRollNA = false;
+        return 'N/A';
+      }
+      
       // First check for the ultra-rare N/A roll (1 in 100,000 chance)
       const naChance = 1 / 100000;
       const r = Math.random();
@@ -2031,6 +2097,7 @@
 
     let isRolling = false;
     let lastRollAt = 0;
+    let forceNextRollNA = false;
     const ROLL_COOLDOWN_MS = 10000;
     function setRolling(rolling) {
       isRolling = rolling;
@@ -2069,6 +2136,22 @@
             showBigNumber('N/A');
             els.result.textContent = 'You rolled: N/A';
             
+            // Play N/A sound effect
+            try {
+              const naAudio = new Audio('NA.mp3');
+              naAudio.addEventListener('error', () => {
+                console.log('N/A audio file not found, but continuing without sound');
+              });
+              void naAudio.play().catch(() => {
+                console.log('N/A audio play failed, but continuing without sound');
+              });
+            } catch (e) {
+              console.log('Could not load N/A audio, but continuing without sound');
+            }
+            
+            // Create confetti effect
+            createConfetti();
+            
             // Unlock the ultra-rare achievement
             unlockAchievement('gamblersChance');
             
@@ -2087,7 +2170,11 @@
             }
 
             if (v === 6) {
-              applyRollSixBuff();
+              // Grant multiplayer luck potion instead of automatic potion
+              const luckDuration = 10 * 60 * 1000; // 10 minutes
+              setLuckPotionUntil(Date.now() + luckDuration);
+              
+              alert('🍀 LUCK BOOST! You rolled a 6 and received multiplayer luck potion!\n\n10 minutes of 2x chance to roll 6!');
             } else {
               rollsSinceSix += 1;
               if (rollsSinceSix >= 3) {
